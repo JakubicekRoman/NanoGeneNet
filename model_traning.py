@@ -73,7 +73,7 @@ class LSTM(nn.Module):
         y=self.do(y)
 
         y=self.linear2(y)
-        y=F.relu(y)
+        y=torch.sigmoid(y)
 
         y=self.linear3(y)
             
@@ -91,7 +91,7 @@ def dice_loss(X, Y):
 
    
 batch=1
-hiden_dim=50
+hiden_dim=20
 proc = 0.7
 
 path_data = os.path.normpath( 'D:\Projekty\Bioinformatika\Data_reload')
@@ -126,9 +126,15 @@ for i,(sample, lbl) in enumerate(train_loader):
     pred = F.softmax(pred, dim=2)
     loss = dice_loss(pred, lbl.cuda())
     train_loss.append(loss.detach().cpu().numpy())
+    
+    del pred, lbl, sample
+    torch.cuda.empty_cache()
+    
+    plt.figure
+    plt.plot(train_loss)
+    plt.show()
 
 torch.cuda.empty_cache()
-
 
 
 # plt.figure
