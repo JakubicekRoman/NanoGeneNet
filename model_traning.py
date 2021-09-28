@@ -83,11 +83,7 @@ class LSTM(nn.Module):
         self.h=torch.zeros((self.lstm_layers, batch, self.h_size)).cuda()
         self.c=torch.zeros((self.lstm_layers, batch, self.h_size)).cuda()
 
- 
-def dice_loss(X, Y):
-    eps = 1.
-    dice = ((2. * torch.sum(X*Y) + eps) / (torch.sum(X) + torch.sum(Y) + eps) )
-    return 1 - dice
+
 
    
 batch=1
