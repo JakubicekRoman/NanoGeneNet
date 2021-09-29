@@ -12,19 +12,28 @@ import os
 import glob
 
 
-path_data = 'D:\Projekty\Bioinformatika\Data_reload'
+path_data = 'C:\Data\Jakubicek\Bioinformatika\Data_reload'
 path_data = os.path.normpath(path_data)
 sigs_list = glob.glob(os.path.normpath( path_data + "\*.npy"))
         
 N=[]
 M=[]
+I=[]
 for index in range(0,len(sigs_list)):
     sig, loc = np.load( sigs_list[index], allow_pickle=True )  
     N.append(len(sig))
     loc.sort()  
-    M.append(loc[1]-loc[0])    
+    M.append(loc[1]-loc[0])
+    if N[-1]>2000000:
+        I.append(index)
+        print( sigs_list[index])
 
-           
+ 
+plt.hist(N,512)
+plt.show()          
+
+plt.hist(M,512)
+plt.show() 
 
 # a = np.load('D:\Projekty\Bioinformatika\Data\with_gapA\gapA_3KP_FCvsFL_RBK_barcode08_KP1210_signals.npy',allow_pickle=True)
 
