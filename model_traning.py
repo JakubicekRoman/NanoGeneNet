@@ -110,7 +110,7 @@ class LSTM(nn.Module):
 
    
 batch=4
-hiden_dim=1024
+hiden_dim=512
 proc=0.7
 convF = 16
 
@@ -161,16 +161,16 @@ for epch in range(0,10):
         pred = F.softmax(pred, dim=2)
         # loss = utilities.dice_loss(pred, lbl.cuda())
         
-        loss = torch.mean( -torch.log(pred[lbl==1]) )
+        # loss = torch.mean( -torch.log(pred[lbl==1]) )
         # loss = nn.CrossEntropyLoss(pred, lbl.cuda() )
         # loss = nn.BCEWithLogitsLoss(reduction='sum')(pred, lbl.cuda() )
-        # loss = utilities.dice_loss(pred, lbl.cuda() )
+        loss = utilities.dice_loss(pred, lbl.cuda() )
          
         train_loss.append(loss.detach().cpu().numpy())
      
         optimizer.zero_grad()
         loss.backward(retain_graph=True)
-        # nn.utils.clip_grad_norm_(net.parameters(), 1)
+        nn.utils.clip_grad_norm_(net.parameters(), 1)
         optimizer.step()
         scheduler.step()
         
