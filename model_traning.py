@@ -17,7 +17,7 @@ import torch.nn as nn
 import torch.nn.functional as F 
 from torch.utils.data import DataLoader 
 from torch.utils.data import Dataset
-# import utilities
+import utilities
 
 
 class nacitac(Dataset):
@@ -36,37 +36,47 @@ class nacitac(Dataset):
         sig, loc = np.load( self.sigs_list[index], allow_pickle=True )  
         N = len(sig)
         loc.sort()       
-        sig = torch.tensor( sig.astype(np.float32) )
-        sig = sig.unsqueeze(1)
+        sig = sig.astype(np.float32)
+        # sig = sig.unsqueeze(1)
+        sig = np.expand_dims(sig,1)
         # sig = sig.unsqueeze(0)
         
         lbl = np.zeros([N,2], dtype=bool)
         lbl[loc[0]:loc[1],0] = True
         lbl[:,1] = ~lbl[:,0]
-        lbl = torch.tensor(lbl)
+        lbl = np.float32(lbl)
         
-        sig = sig[::4,:]
-        lbl = lbl[::4,:]
+        sig = utilities.crop_sig(sig, loc).astype(np.float32)
+        lbl = utilities.crop_sig(lbl, loc).astype(np.float32)
+        
+        lbl = torch.tensor(lbl)
+        sig = torch.tensor(sig)
+        
+        # sig = sig.unsqueeze(0)
+        # lbl = lbl.unsqueeze(0)
+                 
+        # sig = sig[::2,:]
+        # lbl = lbl[::2,:]
         
         return  sig, lbl
     
 
 
 class LSTM(nn.Module):
-    def __init__(self,x_size,h_size,y_size,lstm_layers=2,dropout=0.5):
+    def __init__(self,numF,h_size,y_size,lstm_layers=2,dropout=0.5):
         super(LSTM, self).__init__()
 
-        self.conv1 = nn.Conv1d(in_channels = 1, out_channels =  8, kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
-        self.lstm_layers=lstm_layers
+        self.conv1 = nn.Conv1d(in_channels = 1, out_channels =  numF, kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
+        self.lstm_layers = lstm_layers
         self.h_size=h_size
 
-        self.lstm=nn.LSTM(x_size,h_size,batch_first=True,num_layers=self.lstm_layers,dropout=dropout)    
+        self.lstm=nn.LSTM(numF,h_size,batch_first=True,num_layers=self.lstm_layers,dropout=dropout, bidirectional=False)    
 
-        # self.linear1=nn.Linear(h_size+x_size,h_size)
+        # self.linear1=nn.Linear(h_size+numF,h_size)
         self.linear1=nn.Linear(h_size,h_size)
         
-        self.do=nn.Dropout(p=dropout)
-        # self.linear2=nn.Linear(h_size,h_size)
+        # self.do=nn.Dropout(p=dropout)
+        self.linear2=nn.Linear(h_size,h_size)
         self.linear3=nn.Linear(h_size,y_size)
         
 
@@ -83,26 +93,25 @@ class LSTM(nn.Module):
         # y=self.linear1(torch.cat((x,y),2))   ### concatenation of input and lstm output  - "residual conection"
         y =self.linear1(y)
         y=F.relu(y)
-        y=self.do(y)
+        # y=self.do(y)
 
-        # y=self.linear2(y)
-        # y=F.relu(y)
+        y=self.linear2(y)
+        y=F.relu(y)
 
         y=self.linear3(y)
             
-        return y
+        return y, self.h, self.c
 
     def init_hiden(self,batch):
         self.h=torch.zeros((self.lstm_layers, batch, self.h_size)).cuda()
         self.c=torch.zeros((self.lstm_layers, batch, self.h_size)).cuda()
 
-
    
-batch=1
-hiden_dim=100
-proc = 0.7
+batch=16
+hiden_dim=512
+proc=0.7
 
-path_data = os.path.normpath( 'C:\Data\Jakubicek\Bioinformatika\Data_reload')
+path_data = os.path.normpath( 'C:\data\jakubicek\GEN_Data_reload')
 
 N =  np.shape( glob.glob(os.path.normpath( path_data + "\*.npy")))[0]
 ind = np.random.permutation(np.arange(0,N))
@@ -116,8 +125,8 @@ test_loader = DataLoader(dataset, shuffle=True, batch_size=batch)
 
 # # LSTM training
 
-net = LSTM(8, hiden_dim, 2).cuda()
-optimizer = optim.Adam(net.parameters(), lr=0.001,weight_decay=1e-6)
+net = LSTM(16, hiden_dim, 2).cuda()
+optimizer = optim.Adam(net.parameters(), lr=0.0001,weight_decay=1e-6)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=300, gamma=0.8,verbose=False)
 net.init_hiden(batch)
 
@@ -130,19 +139,32 @@ test_acc = []
 
 net.train()
 
+# net.init_hiden(batch)
+
 for i,(sample, lbl) in enumerate(train_loader):
        
     net.init_hiden(batch)
+    # net.hidden[0].detach_()
+    # net.hidden[1].detach_()
+    # net.zero_grad()
     
-    pred = net(sample.cuda())
+    pred,h,c = net(sample.cuda())
+    
+    # net.update_hiden(h,c)
+
+
     pred = F.softmax(pred, dim=2)
     # loss = utilities.dice_loss(pred, lbl.cuda())
     
-    loss = torch.mean( -torch.log(pred[lbl==1]) )
+    # loss = torch.mean( -torch.log(pred[lbl==1]) )
+    # loss = nn.CrossEntropyLoss(pred, lbl.cuda() )
+    loss = nn.BCEWithLogitsLoss()(pred, lbl.cuda())
+    # loss = utilities.dice_loss(pred, lbl.cuda())
+     
     train_loss.append(loss.detach().cpu().numpy()) 
  
     optimizer.zero_grad()
-    loss.backward()
+    loss.backward(retain_graph=True)
     nn.utils.clip_grad_norm_(net.parameters(), 1)
     optimizer.step()
     scheduler.step()

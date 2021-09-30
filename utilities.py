@@ -13,9 +13,24 @@ def dice_loss(X, Y):
     return 1 - dice
 
 
-def crop_sig(sig, N, loc):
+def crop_sig(sig, loc):
 
-    ind = np.random.randint(loc[0]-N+1)
-    z = loc[1]-N
-    csig = sig[range(z,loc[0]),:]
-    return csig
+    # ind = np.random.randint(loc[0]-N+1)
+    # z = loc[1]-N
+    z = loc[0]-4000
+    k = loc[1]+4000
+    if z<0:
+        z=0
+    if k>sig.shape[0]:
+        k=sig.shape[0]
+        
+    sig = sig[range(int(z),int(k)),:].copy()
+    
+    vel = sig.shape[1]
+    newsig = np.zeros((4000,vel))
+
+    for i in range(0,vel):
+        newsig[:,i] = np.interp(np.linspace(0,sig.shape[0]-1,4000), np.linspace(0,sig.shape[0]-1,sig.shape[0]), sig[:,i])  
+    
+    return newsig    
+    return newsig
