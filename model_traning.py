@@ -63,7 +63,7 @@ class nacitac(Dataset):
 
 
 class LSTM(nn.Module):
-    def __init__(self,numF,h_size,y_size,lstm_layers=2,dropout=0.5):
+    def __init__(self,numF,h_size,y_size,lstm_layers=1,dropout=0.5):
         super(LSTM, self).__init__()
 
         self.conv1 = nn.Conv1d(in_channels = 1, out_channels =  numF, kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
@@ -72,10 +72,10 @@ class LSTM(nn.Module):
 
         self.lstm=nn.LSTM(numF,h_size,batch_first=True,num_layers=self.lstm_layers,dropout=dropout, bidirectional=False)    
 
-        # self.linear1=nn.Linear(h_size+numF,h_size)
+        # self.linear1=nn.Linear(h_size+x_size,h_size)
         self.linear1=nn.Linear(h_size,h_size)
         
-        # self.do=nn.Dropout(p=dropout)
+        self.do=nn.Dropout(p=dropout)
         self.linear2=nn.Linear(h_size,h_size)
         self.linear3=nn.Linear(h_size,y_size)
         
@@ -88,28 +88,31 @@ class LSTM(nn.Module):
         y = y.permute([0,2,1])
         x = x.permute([0,2,1])
         
+        # y,(self.h,self.c)=self.lstm(x,(self.h,self.c))
         y,(self.h,self.c)=self.lstm(y,(self.h,self.c))
 
-        # y=self.linear1(torch.cat((x,y),2))   ### concatenation of input and lstm output  - "residual conection"
+        # y=self.linear1(torch.cat((x,y),2))   ### concatenation of input and lstm output  - "residual conection"\
+        y=F.relu(y)
         y =self.linear1(y)
         y=F.relu(y)
-        # y=self.do(y)
+        y=self.do(y)
 
         y=self.linear2(y)
         y=F.relu(y)
 
         y=self.linear3(y)
             
-        return y, self.h, self.c
+        return y
 
     def init_hiden(self,batch):
         self.h=torch.zeros((self.lstm_layers, batch, self.h_size)).cuda()
         self.c=torch.zeros((self.lstm_layers, batch, self.h_size)).cuda()
 
    
-batch=16
-hiden_dim=512
+batch=4
+hiden_dim=1024
 proc=0.7
+convF = 16
 
 path_data = os.path.normpath( 'C:\data\jakubicek\GEN_Data_reload')
 
@@ -125,65 +128,67 @@ test_loader = DataLoader(dataset, shuffle=True, batch_size=batch)
 
 # # LSTM training
 
-net = LSTM(16, hiden_dim, 2).cuda()
-optimizer = optim.Adam(net.parameters(), lr=0.0001,weight_decay=1e-6)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=300, gamma=0.8,verbose=False)
+net = LSTM(convF, hiden_dim, 2).cuda()
+optimizer = optim.Adam(net.parameters(), lr=0.001,weight_decay=1e-6)
+optimizer = optim.SGD(net.parameters(), lr=0.001,weight_decay=1e-6)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=200, gamma=0.8,verbose=False)
 net.init_hiden(batch)
-
 
 train_loss = []
 test_loss = []
 train_acc = []
-test_acc = []
+test_acc = []    
 
 
-net.train()
-
-# net.init_hiden(batch)
-
-for i,(sample, lbl) in enumerate(train_loader):
-       
-    net.init_hiden(batch)
-    # net.hidden[0].detach_()
-    # net.hidden[1].detach_()
-    # net.zero_grad()
+for epch in range(0,10):
+    net.train()
+    n=0
     
-    pred,h,c = net(sample.cuda())
+    # net.init_hiden(batch)
     
-    # net.update_hiden(h,c)
-
-
-    pred = F.softmax(pred, dim=2)
-    # loss = utilities.dice_loss(pred, lbl.cuda())
+    for i,(sample, lbl) in enumerate(train_loader):
+           
+        net.init_hiden(batch)
+        # net.hidden[0].detach_()
+        # net.hidden[1].detach_()
+        # net.zero_grad()
+        
+        pred = net(sample.cuda())
+        
+        # net.update_hiden(h,c)•
     
-    # loss = torch.mean( -torch.log(pred[lbl==1]) )
-    # loss = nn.CrossEntropyLoss(pred, lbl.cuda() )
-    loss = nn.BCEWithLogitsLoss()(pred, lbl.cuda())
-    # loss = utilities.dice_loss(pred, lbl.cuda())
+    
+        pred = F.softmax(pred, dim=2)
+        # loss = utilities.dice_loss(pred, lbl.cuda())
+        
+        # loss = torch.mean( -torch.log(pred[lbl==1]) )
+        # loss = nn.CrossEntropyLoss(pred, lbl.cuda() )
+        loss = nn.BCEWithLogitsLoss(reduction='sum')(pred, lbl.cuda() )
+        # loss = utilities.dice_loss(pred, lbl.cuda() )
+         
+        train_loss.append(loss.detach().cpu().numpy())
      
-    train_loss.append(loss.detach().cpu().numpy()) 
- 
-    optimizer.zero_grad()
-    loss.backward(retain_graph=True)
-    nn.utils.clip_grad_norm_(net.parameters(), 1)
-    optimizer.step()
-    scheduler.step()
-    
+        optimizer.zero_grad()
+        loss.backward(retain_graph=True)
+        # nn.utils.clip_grad_norm_(net.parameters(), 1)
+        optimizer.step()
+        scheduler.step()
+        
+        torch.cuda.empty_cache()
+        
+        if n%20 == 0:
+            plt.figure
+            plt.plot(train_loss)
+            plt.show()
+            
+            plt.figure
+            plt.plot(lbl.detach().cpu().numpy()[0,:,0])
+            plt.plot(pred.detach().cpu().numpy()[0,:,0])
+            plt.show()
+            
+        n=n+1
+        
     torch.cuda.empty_cache()
-    
-    plt.figure
-    plt.plot(train_loss)
-    plt.show()
-    
-    plt.figure
-    plt.plot(lbl.detach().cpu().numpy()[0,:,0])
-    plt.plot(pred.detach().cpu().numpy()[0,:,0])
-    plt.show()
-
-torch.cuda.empty_cache()
 
 
-# plt.figure
-# plt.plot(lbl[:,0])
-# plt.plot(pred[:,0])
 

@@ -17,8 +17,8 @@ def crop_sig(sig, loc):
 
     # ind = np.random.randint(loc[0]-N+1)
     # z = loc[1]-N
-    z = loc[0]-4000
-    k = loc[1]+4000
+    z = loc[0]-6000
+    k = loc[1]+6000
     if z<0:
         z=0
     if k>sig.shape[0]:
@@ -27,10 +27,12 @@ def crop_sig(sig, loc):
     sig = sig[range(int(z),int(k)),:].copy()
     
     vel = sig.shape[1]
-    newsig = np.zeros((4000,vel))
+    
+    N = 4000
+    newsig = np.zeros((N,vel))
 
     for i in range(0,vel):
-        newsig[:,i] = np.interp(np.linspace(0,sig.shape[0]-1,4000), np.linspace(0,sig.shape[0]-1,sig.shape[0]), sig[:,i])  
+        newsig[:,i] = np.interp(np.linspace(0,sig.shape[0]-1,N), np.linspace(0,sig.shape[0]-1,sig.shape[0]), sig[:,i])  
     
     return newsig    
     return newsig
