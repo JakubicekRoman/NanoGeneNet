@@ -63,7 +63,7 @@ class nacitac(Dataset):
 
 
 class LSTM(nn.Module):
-    def __init__(self,numF,h_size,y_size,lstm_layers=1,dropout=0.5):
+    def __init__(self,numF,h_size,y_size,lstm_layers=2,dropout=0.5):
         super(LSTM, self).__init__()
 
         self.conv1 = nn.Conv1d(in_channels = 1, out_channels =  numF, kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
@@ -119,18 +119,18 @@ path_data = os.path.normpath( 'C:\data\jakubicek\GEN_Data_reload')
 N =  np.shape( glob.glob(os.path.normpath( path_data + "\*.npy")))[0]
 ind = np.random.permutation(np.arange(0,N))
 
-dataset = nacitac(path_data, ind[0:int(np.round(N*proc))]  )
-train_loader = DataLoader(dataset, shuffle=True, batch_size=batch)
+dataset = nacitac(path_data, ind[0:int(np.round(N*proc))] )
+train_loader = DataLoader(dataset, shuffle=True, batch_size=batch, drop_last=True )
 
 dataset = nacitac(path_data,  ind[int(np.round(N*proc))+1:N]  )   
-test_loader = DataLoader(dataset, shuffle=True, batch_size=batch)
+test_loader = DataLoader(dataset, shuffle=True, batch_size=batch, drop_last=True )
 
 
 # # LSTM training
 
 net = LSTM(convF, hiden_dim, 2).cuda()
-optimizer = optim.Adam(net.parameters(), lr=0.001,weight_decay=1e-6)
-optimizer = optim.SGD(net.parameters(), lr=0.001,weight_decay=1e-6)
+# optimizer = optim.Adam(net.parameters(), lr=0.001,weight_decay=1e-6)
+optimizer = optim.SGD(net.parameters(), lr=0.1,weight_decay=1e-6)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=200, gamma=0.8,verbose=False)
 net.init_hiden(batch)
 
@@ -161,9 +161,9 @@ for epch in range(0,10):
         pred = F.softmax(pred, dim=2)
         # loss = utilities.dice_loss(pred, lbl.cuda())
         
-        # loss = torch.mean( -torch.log(pred[lbl==1]) )
+        loss = torch.mean( -torch.log(pred[lbl==1]) )
         # loss = nn.CrossEntropyLoss(pred, lbl.cuda() )
-        loss = nn.BCEWithLogitsLoss(reduction='sum')(pred, lbl.cuda() )
+        # loss = nn.BCEWithLogitsLoss(reduction='sum')(pred, lbl.cuda() )
         # loss = utilities.dice_loss(pred, lbl.cuda() )
          
         train_loss.append(loss.detach().cpu().numpy())
@@ -176,7 +176,7 @@ for epch in range(0,10):
         
         torch.cuda.empty_cache()
         
-        if n%20 == 0:
+        if n%50 == 0:
             plt.figure
             plt.plot(train_loss)
             plt.show()
