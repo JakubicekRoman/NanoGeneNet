@@ -66,17 +66,17 @@ class LSTM(nn.Module):
     def __init__(self,numF,h_size,y_size,lstm_layers=2,dropout=0.5):
         super(LSTM, self).__init__()
 
-        self.conv1 = nn.Conv1d(in_channels = 1, out_channels =  numF, kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
+        # self.conv1 = nn.Conv1d(in_channels = 1, out_channels =  numF, kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
         self.lstm_layers = lstm_layers
         self.h_size=h_size
 
         self.lstm=nn.LSTM(1,h_size,batch_first=True,num_layers=self.lstm_layers,dropout=dropout, bidirectional=False)    
 
-        self.linear1=nn.Linear(h_size+numF+1,int(h_size/4), bias=True)
+        # self.linear1=nn.Linear(h_size+numF+1,int(h_size/4), bias=True)
         # self.linear1=nn.Linear(h_size,h_size)
         
-        self.do=nn.Dropout(p=dropout)
-        self.linear2=nn.Linear(int(h_size/4),h_size, bias=True)
+        # self.do=nn.Dropout(p=dropout)
+        # self.linear2=nn.Linear(int(h_size/4),h_size, bias=True)
         self.linear3=nn.Linear(h_size,y_size, bias=True)
         
 
@@ -91,14 +91,15 @@ class LSTM(nn.Module):
         y,(self.h,self.c)=self.lstm(x,(self.h,self.c))
         # y,(self.h,self.c)=self.lstm(y,(self.h,self.c))
 
-        y=self.linear1(torch.cat((x,y,yC),2))   ### concatenation of input and lstm output  - "residual conection"\
-        y=F.relu(y)
+        # y=self.linear1(torch.cat((x,y,yC),2))   ### concatenation of input and lstm output  - "residual conection"\
+        # y=F.relu(y)
+        
         # y =self.linear1(y)
         # y=F.relu(y)
         # y=self.do(y)
 
-        y=self.linear2(y)
-        y=F.relu(y)
+        # y=self.linear2(y)
+        # y=F.relu(y)
 
         y=self.linear3(y)
             
@@ -164,6 +165,7 @@ for epch in range(0,20):
         # pred = pred.permute([0,2,1])
         # lbl = lbl.permute([0,2,1])
 
+        # loss = torch.mean( -torch.log(pred[lbl==1]) )
         loss = torch.mean( -torch.log(pred[lbl==1]) )
         # loss = nn.CrossEntropyLoss()(pred, lbl.cuda() )
         # loss = nn.BCEWithLogitsLoss()(pred[:,:,1], lbl.cuda()[:,:,1] )
@@ -181,7 +183,7 @@ for epch in range(0,20):
         
         torch.cuda.empty_cache()
         
-        if n%100 == 0:
+        if n%20 == 0:
             plt.figure
             plt.plot(train_loss)
             plt.show()

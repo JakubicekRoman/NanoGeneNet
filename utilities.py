@@ -12,13 +12,18 @@ def dice_loss(X, Y):
     dice = ((2. * torch.sum(X*Y) + eps) / (torch.sum(X) + torch.sum(Y) + eps) )
     return 1 - dice
 
+# def WCE_loss(X, Y):
+#     # eps = 1.
+#     WCE =  -torch.log( X ) 
+#     return WCE
+
 
 def crop_sig(sig, loc):
 
     # ind = np.random.randint(loc[0]-N+1)
     # z = loc[1]-N
-    z = loc[0]-10000
-    k = loc[1]+10000
+    z = loc[0]-8000
+    k = loc[1]+8000
     if z<0:
         z=0
     if k>sig.shape[0]:
@@ -28,7 +33,7 @@ def crop_sig(sig, loc):
     
     vel = sig.shape[1]
     
-    N = 20000
+    N = 5000
     newsig = np.zeros((N,vel))
 
     for i in range(0,vel):
