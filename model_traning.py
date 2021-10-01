@@ -70,32 +70,32 @@ class LSTM(nn.Module):
         self.lstm_layers = lstm_layers
         self.h_size=h_size
 
-        self.lstm=nn.LSTM(numF,h_size,batch_first=True,num_layers=self.lstm_layers,dropout=dropout, bidirectional=False)    
+        self.lstm=nn.LSTM(1,h_size,batch_first=True,num_layers=self.lstm_layers,dropout=dropout, bidirectional=False)    
 
-        # self.linear1=nn.Linear(h_size+x_size,h_size)
-        self.linear1=nn.Linear(h_size,h_size)
+        self.linear1=nn.Linear(h_size+numF+1,int(h_size/4), bias=True)
+        # self.linear1=nn.Linear(h_size,h_size)
         
         self.do=nn.Dropout(p=dropout)
-        self.linear2=nn.Linear(h_size,h_size)
-        self.linear3=nn.Linear(h_size,y_size)
+        self.linear2=nn.Linear(int(h_size/4),h_size, bias=True)
+        self.linear3=nn.Linear(h_size,y_size, bias=True)
         
 
     def forward(self, x):
 
         x = x.permute([0,2,1])
-        y=self.conv1(x)
-        y = F.relu(y)
-        y = y.permute([0,2,1])
+        yC=self.conv1(x)
+        yC = F.relu(yC)
+        yC = yC.permute([0,2,1])
         x = x.permute([0,2,1])
         
-        # y,(self.h,self.c)=self.lstm(x,(self.h,self.c))
-        y,(self.h,self.c)=self.lstm(y,(self.h,self.c))
+        y,(self.h,self.c)=self.lstm(x,(self.h,self.c))
+        # y,(self.h,self.c)=self.lstm(y,(self.h,self.c))
 
-        # y=self.linear1(torch.cat((x,y),2))   ### concatenation of input and lstm output  - "residual conection"\
+        y=self.linear1(torch.cat((x,y,yC),2))   ### concatenation of input and lstm output  - "residual conection"\
         y=F.relu(y)
-        y =self.linear1(y)
-        y=F.relu(y)
-        y=self.do(y)
+        # y =self.linear1(y)
+        # y=F.relu(y)
+        # y=self.do(y)
 
         y=self.linear2(y)
         y=F.relu(y)
@@ -109,10 +109,10 @@ class LSTM(nn.Module):
         self.c=torch.zeros((self.lstm_layers, batch, self.h_size)).cuda()
 
    
-batch=4
+batch=8
 hiden_dim=512
 proc=0.7
-convF = 16
+convF = 4
 
 path_data = os.path.normpath( 'C:\data\jakubicek\GEN_Data_reload')
 
@@ -128,10 +128,12 @@ test_loader = DataLoader(dataset, shuffle=True, batch_size=batch, drop_last=True
 
 # # LSTM training
 
-net = LSTM(convF, hiden_dim, 2).cuda()
-# optimizer = optim.Adam(net.parameters(), lr=0.001,weight_decay=1e-6)
-optimizer = optim.SGD(net.parameters(), lr=0.1,weight_decay=1e-6)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=200, gamma=0.8,verbose=False)
+# net = LSTM(convF, hiden_dim, 2).cuda()
+net = torch.load(r"D:\jakubicek\Bioinformatika\netv1_1.pt")
+
+optimizer = optim.Adam(net.parameters(), lr=0.001,weight_decay=1e-6)
+# optimizer = optim.SGD(net.parameters(), lr=0.01,weight_decay=1e-9)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1800, gamma=0.1,verbose=False)
 net.init_hiden(batch)
 
 train_loss = []
@@ -140,7 +142,7 @@ train_acc = []
 test_acc = []    
 
 
-for epch in range(0,10):
+for epch in range(0,20):
     net.train()
     n=0
     
@@ -154,29 +156,32 @@ for epch in range(0,10):
         # net.zero_grad()
         
         pred = net(sample.cuda())
-        
-        # net.update_hiden(h,c)•
-    
+          
     
         pred = F.softmax(pred, dim=2)
         # loss = utilities.dice_loss(pred, lbl.cuda())
         
-        # loss = torch.mean( -torch.log(pred[lbl==1]) )
-        # loss = nn.CrossEntropyLoss(pred, lbl.cuda() )
-        # loss = nn.BCEWithLogitsLoss(reduction='sum')(pred, lbl.cuda() )
-        loss = utilities.dice_loss(pred, lbl.cuda() )
+        # pred = pred.permute([0,2,1])
+        # lbl = lbl.permute([0,2,1])
+
+        loss = torch.mean( -torch.log(pred[lbl==1]) )
+        # loss = nn.CrossEntropyLoss()(pred, lbl.cuda() )
+        # loss = nn.BCEWithLogitsLoss()(pred[:,:,1], lbl.cuda()[:,:,1] )
+        # loss = nn.BCEWithLogitsLoss()(pred[:,:,1], lbl.cuda()[:,:,1] )
+
+        # loss = utilities.dice_loss(pred, lbl.cuda() )
          
         train_loss.append(loss.detach().cpu().numpy())
      
         optimizer.zero_grad()
-        loss.backward(retain_graph=True)
+        loss.backward()
         nn.utils.clip_grad_norm_(net.parameters(), 1)
         optimizer.step()
         scheduler.step()
         
         torch.cuda.empty_cache()
         
-        if n%50 == 0:
+        if n%100 == 0:
             plt.figure
             plt.plot(train_loss)
             plt.show()

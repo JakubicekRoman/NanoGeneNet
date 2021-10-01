@@ -28,7 +28,7 @@ def crop_sig(sig, loc):
     
     vel = sig.shape[1]
     
-    N = 8000
+    N = 20000
     newsig = np.zeros((N,vel))
 
     for i in range(0,vel):
