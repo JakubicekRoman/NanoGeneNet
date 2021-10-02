@@ -6,24 +6,58 @@ Created on Tue Sep 28 18:39:04 2021
 """
 import torch
 import numpy as np
+import random
  
 def dice_loss(X, Y):
     eps = 1.
     dice = ((2. * torch.sum(X*Y) + eps) / (torch.sum(X) + torch.sum(Y) + eps) )
     return 1 - dice
 
-# def WCE_loss(X, Y):
-#     # eps = 1.
-#     WCE =  -torch.log( X ) 
-#     return WCE
+def WCE_loss(X, Y):
+    w = np.sum(  np.array( Y[:,:,0]) ,1)  / Y.shape[1]
+    w = torch.tensor(np.matlib.repmat(w, X.shape[1], 1).T).cuda()
+    
+    WCE = torch.mean( -torch.log( (  X[:,:,1] * w \
+                                   + X[:,:,0] * (1-w) ) /2 ) )
+    return WCE
 
 
-def crop_sig(sig, loc):
+def loader(ite,sigs_list,trainIND, batch):
+    # M = int(5000)
+    M1 = random.randrange(500, 20000)
+    M2 = random.randrange(500, 20000)
+    LBL = torch.tensor(np.zeros((batch,int((M1+M2)/4),2), dtype=np.float32))
+    Sig = torch.tensor(np.zeros((batch,int((M1+M2)/4),1), dtype=np.float32))
+    
+    for i in range(0,batch):
+        sig, loc = np.load( sigs_list[ite+i], allow_pickle=True )
+        N = len(sig)
+        loc.sort()       
+        sig = sig.astype(np.float32)
+        sig = np.expand_dims(sig,1)
+        
+        lbl = np.zeros([N,2], dtype=bool)
+        lbl[loc[0]:loc[1],0] = True
+        lbl[:,1] = ~lbl[:,0]
+        lbl = np.float32(lbl)
+        
+        sig = crop_sig(sig, loc, (M1,M2)).astype(np.float32)
+        lbl = crop_sig(lbl, loc, (M1,M2)).astype(np.float32)
+        
+        LBL[i,:,:] = torch.tensor(lbl)
+        Sig[i,:,:] = torch.tensor(sig)
+    
+    
+    return  Sig, LBL
+  
+  
+
+def crop_sig(sig, loc, M):
 
     # ind = np.random.randint(loc[0]-N+1)
     # z = loc[1]-N
-    z = loc[0]-8000
-    k = loc[1]+8000
+    z = loc[0]-M[0]
+    k = loc[1]+M[1]
     if z<0:
         z=0
     if k>sig.shape[0]:
@@ -33,7 +67,7 @@ def crop_sig(sig, loc):
     
     vel = sig.shape[1]
     
-    N = 5000
+    N = int( np.sum(M)/4 )
     newsig = np.zeros((N,vel))
 
     for i in range(0,vel):

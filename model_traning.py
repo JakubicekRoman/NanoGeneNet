@@ -20,47 +20,46 @@ from torch.utils.data import Dataset
 import utilities
 
 
-class nacitac(Dataset):
-    def __init__(self, path_data,ind):      
-        path_data = os.path.normpath(path_data)
-        sigs_list = glob.glob(os.path.normpath( path_data + "\*.npy"))
+# class nacitac(Dataset):
+#     def __init__(self, path_data,ind):      
+#         path_data = os.path.normpath(path_data)
+#         sigs_list = glob.glob(os.path.normpath( path_data + "\*.npy"))
         
-        self.sigs_list = []
-        for index in ind:
-             self.sigs_list.append(sigs_list[index])
+#         self.sigs_list = []
+#         for index in ind:
+#              self.sigs_list.append(sigs_list[index])
     
-    def __len__(self):
-        return len(self.sigs_list)
+#     def __len__(self):
+#         return len(self.sigs_list)
     
-    def __getitem__(self, index):        
-        sig, loc = np.load( self.sigs_list[index], allow_pickle=True )  
-        N = len(sig)
-        loc.sort()       
-        sig = sig.astype(np.float32)
-        # sig = sig.unsqueeze(1)
-        sig = np.expand_dims(sig,1)
-        # sig = sig.unsqueeze(0)
+#     def __getitem__(self, index):        
+#         sig, loc = np.load( self.sigs_list[index], allow_pickle=True )  
+#         N = len(sig)
+#         loc.sort()       
+#         sig = sig.astype(np.float32)
+#         # sig = sig.unsqueeze(1)
+#         sig = np.expand_dims(sig,1)
+#         # sig = sig.unsqueeze(0)
         
-        lbl = np.zeros([N,2], dtype=bool)
-        lbl[loc[0]:loc[1],0] = True
-        lbl[:,1] = ~lbl[:,0]
-        lbl = np.float32(lbl)
+#         lbl = np.zeros([N,2], dtype=bool)
+#         lbl[loc[0]:loc[1],0] = True
+#         lbl[:,1] = ~lbl[:,0]
+#         lbl = np.float32(lbl)
         
-        sig = utilities.crop_sig(sig, loc).astype(np.float32)
-        lbl = utilities.crop_sig(lbl, loc).astype(np.float32)
+#         sig = utilities.crop_sig(sig, loc).astype(np.float32)
+#         lbl = utilities.crop_sig(lbl, loc).astype(np.float32)
         
-        lbl = torch.tensor(lbl)
-        sig = torch.tensor(sig)
+#         lbl = torch.tensor(lbl)
+#         sig = torch.tensor(sig)
         
-        # sig = sig.unsqueeze(0)
-        # lbl = lbl.unsqueeze(0)
+#         # sig = sig.unsqueeze(0)
+#         # lbl = lbl.unsqueeze(0)
                  
-        # sig = sig[::2,:]
-        # lbl = lbl[::2,:]
+#         # sig = sig[::2,:]
+#         # lbl = lbl[::2,:]
         
-        return  sig, lbl
+#         return  sig, lbl
     
-
 
 class LSTM(nn.Module):
     def __init__(self,numF,h_size,y_size,lstm_layers=2,dropout=0.5):
@@ -82,11 +81,11 @@ class LSTM(nn.Module):
 
     def forward(self, x):
 
-        x = x.permute([0,2,1])
-        yC=self.conv1(x)
-        yC = F.relu(yC)
-        yC = yC.permute([0,2,1])
-        x = x.permute([0,2,1])
+        # x = x.permute([0,2,1])
+        # yC=self.conv1(x)
+        # yC = F.relu(yC)
+        # yC = yC.permute([0,2,1])
+        # x = x.permute([0,2,1])
         
         y,(self.h,self.c)=self.lstm(x,(self.h,self.c))
         # y,(self.h,self.c)=self.lstm(y,(self.h,self.c))
@@ -110,31 +109,32 @@ class LSTM(nn.Module):
         self.c=torch.zeros((self.lstm_layers, batch, self.h_size)).cuda()
 
    
-batch=8
+batch=16
 hiden_dim=512
 proc=0.7
 convF = 4
 
+
 path_data = os.path.normpath( 'C:\data\jakubicek\GEN_Data_reload')
 
-N =  np.shape( glob.glob(os.path.normpath( path_data + "\*.npy")))[0]
+sigs_list = glob.glob(os.path.normpath( path_data + "\*.npy"))
+
+N =  np.array( np.shape(sigs_list))
 ind = np.random.permutation(np.arange(0,N))
 
-dataset = nacitac(path_data, ind[0:int(np.round(N*proc))] )
-train_loader = DataLoader(dataset, shuffle=True, batch_size=batch, drop_last=True )
-
-dataset = nacitac(path_data,  ind[int(np.round(N*proc))+1:N]  )   
-test_loader = DataLoader(dataset, shuffle=True, batch_size=batch, drop_last=True )
+trainIND = ind[0:int(np.round(N*proc))] 
+testIND =  ind[int(np.round(int(N)*proc))+1:int(N)] 
 
 
 # # LSTM training
 
 # net = LSTM(convF, hiden_dim, 2).cuda()
-net = torch.load(r"D:\jakubicek\Bioinformatika\netv1_1.pt")
+# net = torch.load(r"D:\jakubicek\Bioinformatika\netv1_1.p")
+net = torch.load(r"D:\jakubicek\Bioinformatika\netv2_0.pt")
 
 optimizer = optim.Adam(net.parameters(), lr=0.001,weight_decay=1e-6)
 # optimizer = optim.SGD(net.parameters(), lr=0.01,weight_decay=1e-9)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1800, gamma=0.1,verbose=False)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=4*3600/batch, gamma=0.1,verbose=False)
 net.init_hiden(batch)
 
 train_loss = []
@@ -143,18 +143,21 @@ train_acc = []
 test_acc = []    
 
 
-for epch in range(0,20):
+for epch in range(0,40):
     net.train()
     n=0
+    trainIND = np.random.permutation( trainIND )
     
     # net.init_hiden(batch)
     
-    for i,(sample, lbl) in enumerate(train_loader):
+    for ite in range(0, len(trainIND), batch):
            
         net.init_hiden(batch)
         # net.hidden[0].detach_()
         # net.hidden[1].detach_()
         # net.zero_grad()
+        
+        sample,lbl = utilities.loader(ite, sigs_list, trainIND, batch)
         
         pred = net(sample.cuda())
           
@@ -165,8 +168,8 @@ for epch in range(0,20):
         # pred = pred.permute([0,2,1])
         # lbl = lbl.permute([0,2,1])
 
-        # loss = torch.mean( -torch.log(pred[lbl==1]) )
         loss = torch.mean( -torch.log(pred[lbl==1]) )
+        # loss = utilities.WCE_loss(pred, lbl)
         # loss = nn.CrossEntropyLoss()(pred, lbl.cuda() )
         # loss = nn.BCEWithLogitsLoss()(pred[:,:,1], lbl.cuda()[:,:,1] )
         # loss = nn.BCEWithLogitsLoss()(pred[:,:,1], lbl.cuda()[:,:,1] )
@@ -183,7 +186,7 @@ for epch in range(0,20):
         
         torch.cuda.empty_cache()
         
-        if n%20 == 0:
+        if n%50 == 0:
             plt.figure
             plt.plot(train_loss)
             plt.show()
