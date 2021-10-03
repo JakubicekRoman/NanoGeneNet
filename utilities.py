@@ -24,10 +24,12 @@ def WCE_loss(X, Y):
 
 def loader(ite,sigs_list,trainIND, batch):
     # M = int(5000)
-    M1 = random.randrange(500, 20000)
-    M2 = random.randrange(500, 20000)
-    LBL = torch.tensor(np.zeros((batch,int((M1+M2)/4),2), dtype=np.float32))
-    Sig = torch.tensor(np.zeros((batch,int((M1+M2)/4),1), dtype=np.float32))
+    M1 = random.randrange(1000, 5000)
+    M2 = random.randrange(1000, 5000)
+    # LBL = torch.tensor(np.zeros((batch,int((M1+M2)/8),2), dtype=np.float32))
+    # Sig = torch.tensor(np.zeros((batch,int((M1+M2)/8),1), dtype=np.float32))
+    LBL = torch.tensor(np.zeros((batch,int(500),2), dtype=np.float32))
+    Sig = torch.tensor(np.zeros((batch,int(500),1), dtype=np.float32))
     
     for i in range(0,batch):
         sig, loc = np.load( sigs_list[ite+i], allow_pickle=True )
@@ -67,7 +69,8 @@ def crop_sig(sig, loc, M):
     
     vel = sig.shape[1]
     
-    N = int( np.sum(M)/4 )
+    # N = int( np.sum(M)/8 )
+    N = int(500)
     newsig = np.zeros((N,vel))
 
     for i in range(0,vel):
