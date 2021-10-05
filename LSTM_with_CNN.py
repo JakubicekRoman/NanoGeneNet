@@ -180,14 +180,15 @@ test_list = sigs_list[int(np.round(int(N)*proc))+1:int(N)]
 
 # # LSTM training○
 
-net = NetGEN().cuda()
+# net = NetGEN().cuda()
+net = torch.load(r"D:\jakubicek\Bioinformatika\netv5_2.pt")
 
 # net = torch.load(r"D:\jakubicek\Bioinformatika\netv3_0.pt")
 # net = torch.load(r"D:\jakubicek\Bioinformatika\netv2_0.pt")
 
-optimizer = optim.Adam(net.parameters(), lr=0.001,weight_decay=1e-6)
+optimizer = optim.Adam(net.parameters(), lr=0.0000001,weight_decay=1e-6)
 # optimizer = optim.SGD(net.parameters(), lr=0.0001, weight_decay=1e-6)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10*2880/batch, gamma=0.1, verbose=False)
+# scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=3*2880/batch, gamma=0.1, verbose=False)
 # net.init_hiden(batch)
 
 train_loss = []
@@ -250,7 +251,7 @@ for epch in range(0,80):
         loss.backward()
         # nn.utils.clip_grad_norm_(net.parameters(), 1.0)
         optimizer.step()
-        scheduler.step()
+        # scheduler.step()
         
         torch.cuda.empty_cache()
         
@@ -268,18 +269,70 @@ for epch in range(0,80):
             plt.ylim([0.0,1])
             plt.show()
             
+            # plt.figure
+            # plt.plot(lbl.detach().cpu().numpy()[0,:])
+            # plt.plot(pred.detach().cpu().numpy()[0,1,:])
+            # # plt.plot(P[0,:])
+            # # plt.ylim([0.7,1])
+            # plt.show()    
+
+            # train_acc = []                 
+            
+        n=n+1
+        
+    for m in range(0, len(test_list)-batch, batch):
+           
+       
+        sample,lbl = loaderWin(m, test_list, batch)
+        
+        pred = net(sample.cuda())
+          
+        pred = F.softmax(pred, dim=2)
+    
+    
+        lbl = lbl.permute([0,2,1]).cuda()
+        lbl = F.interpolate(lbl, ( pred.shape[1]))
+        lbl = lbl[:,0,:]
+    
+        pred = pred.permute([0,2,1])
+        
+        
+        # loss = nn.CrossEntropyLoss(weight=torch.tensor((0.1, 0.9)).cuda() )( pred,  lbl.type(torch.long) )
+         
+    
+        GT = lbl.detach().cpu().numpy()
+        P = pred[:,1,:].detach().cpu().numpy()>0.5
+        test_acc.append( np.mean( np.sum( GT==P , 1) / GT.shape[1] ) )
+    
+        torch.cuda.empty_cache()
+        
+        
+        if n%20 == 0:
+            
+            # train_ACC.append(np.mean(train_acc))
+            
+            # plt.figure
+            # plt.plot(train_loss)
+            # plt.ylim([0, 1.0])
+            # plt.show()
+            
+            plt.figure
+            plt.plot(test_acc)
+            plt.ylim([0.0,1])
+            plt.show()
+            
             plt.figure
             plt.plot(lbl.detach().cpu().numpy()[0,:])
             plt.plot(pred.detach().cpu().numpy()[0,1,:])
             # plt.plot(P[0,:])
             # plt.ylim([0.7,1])
             plt.show()    
-
+    
             # train_acc = []                 
             
         n=n+1
         
-    torch.cuda.empty_cache()
+        torch.cuda.empty_cache()
 
 
 
