@@ -1,0 +1,1 @@
+4_0.pt - skript"LSTM_with_spectral.py" = sit s naucenim kátkých úseků 50tis, prevod na spektra 500 a nasledne LSTM, loss-WCE, ale obraceni, nevim proc

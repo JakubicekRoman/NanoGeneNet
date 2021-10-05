@@ -73,44 +73,66 @@ class NetGEN(nn.Module):
     def __init__(self):
         super(NetGEN, self).__init__()
 
-        # self.conv1 = nn.Conv1d(in_channels = 1, out_channels =  numF, kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
+        self.conv1 = nn.Conv1d(in_channels = 1, out_channels = 16 , kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
+        self.conv2 = nn.Conv1d(in_channels = 16, out_channels = 32 , kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
+        self.conv3 = nn.Conv1d(in_channels = 32, out_channels = 64 , kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
+        self.conv4 = nn.Conv1d(in_channels = 64, out_channels = 128 , kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
         self.lstm_layers = 1
         self.h_size = h_size = 256 
         
-        self.Spect = torchaudio.transforms.Spectrogram(n_fft=(1024), win_length=(100), hop_length=(100) , pad=(0), pad_mode='reflect', normalized=True, power=1 )
+        # self.Spect = torchaudio.transforms.Spectrogram(n_fft=(1024), win_length=(100), hop_length=(100) , pad=(0), pad_mode='reflect', normalized=True, power=1 )
 
-        # self.lstm=nn.LSTM(numF+1,h_size,batch_first=True,num_layers=self.lstm_layers,dropout=dropout, bidirectional=False)    
-        self.lstm=nn.LSTM(64, h_size, batch_first=True,num_layers=self.lstm_layers, bidirectional=False)    
+        # self.lstm=nn.LSTM(numF+1,h_size,batch_first=True,num_layers=self.lst↑m_layers,dropout=dropout, bidirectional=False)    
+        self.lstm=nn.LSTM(128, h_size, batch_first=True,num_layers=self.lstm_layers, bidirectional=False, dropout=0.5)    
 
         # self.linear1=nn.Linear(h_size+numF+1,int(h_size/4), bias=True)
         # self.linear1=nn.Linear(h_size+1, h_size, bias=True)
         self.linear1=nn.Linear(h_size*2,h_size*2)
         
         self.do=nn.Dropout(p=0.5)
+        self.MP = nn.MaxPool1d(3, stride=2, padding=1)
         # self.linear2=nn.Linear(int(h_size/4),h_size, bias=True)
         self.linear3=nn.Linear(h_size*2, 2, bias=True)
         
-        self.BN = nn.BatchNorm1d(1)
-
+        self.BN1 = nn.BatchNorm1d(16)
+        self.BN2 = nn.BatchNorm1d(32)
+        self.BN3 = nn.BatchNorm1d(64)
+        self.BN4 = nn.BatchNorm1d(128)
+        
+        # self.UPS =  nn.Upsample((1/4))
 
     def forward(self, x):
 
         x = x.permute([0,2,1])
-        x = self.BN(x)
-        # x = x.permute([0,2,1])
         
-        Sxx = self.Spect(x) 
-        Sxx = Sxx[:,0,0:64,:]      
-        Sxx = Sxx.permute([0,2,1])
+        y = self.conv1(x)
+        y = F.relu(y)
+        y = self.BN1(y)
+        y1 = self.MP(y)
         
-        # # plt.imshow( torch.log(Sxx[1,0,0:100,:].detach().cpu()) )
-        # plt.figure()
-        # plt.imshow( (Sxx[0,0,0:64,:].detach().cpu()) )
-        # plt.figure()
-        # plt.plot(lbl[0,::100,0].detach().cpu().numpy())
-        # plt.show()
+        y = self.conv2(y1)
+        y = F.relu(y)
+        y = self.BN2(y)
+        y2 = self.MP(y)
         
-        y,(self.h,self.c)=self.lstm(Sxx,(self.h,self.c))
+        y = self.conv3(y2)
+        y = F.relu(y)
+        y = self.BN3(y)
+        y3 = self.MP(y)
+        
+        y = self.conv4(y3)
+        y = F.relu(y)
+        y = self.BN4(y)
+        y4 = self.MP(y)
+        
+        # self.UPS =  nn.Upsample(  [ *list( y.size())[0:2]  ,  *[list(y4.size())[2]]  ]   )
+        
+        # y = torch.cat( ( self.UPS(x) , self.UPS(y1), self.UPS(y2), self.UPS(y3), self.UPS(y4) ) , 1 )
+            
+        y = y4.permute([0,2,1])
+              
+        y,(self.h,self.c)=self.lstm( y ,(self.h,self.c))
+        
         # y,(self.h,self.c)=self.lstm(y,(self.h,self.c))
 
         # y=self.linear1(torch.cat((x,y,yC),2))   ### concatenation of input and lstm output  - "residual conection"\
@@ -218,9 +240,9 @@ for epch in range(0,80):
         # loss = nn.BCEWithLogitsLoss()(pred[:,:,0], lbl[:,:,0] )
         # loss = nn.BCEWithLogitsLoss()(pred, lbl ) + torch.sigmoid(F.mse_loss(pred[:,:,0],lbl[:,:,0]))
 
-        # GT = lbl[:,:,0].detach().cpu().numpy()
-        # P = pred[:,:,0].detach().cpu().numpy()>0.5
-        # train_acc.append( np.mean( np.sum( GT==P , 1) / GT.shape[1] )  )
+        GT = lbl.detach().cpu().numpy()
+        P = pred[:,1,:].detach().cpu().numpy()>0.5
+        train_acc.append( np.mean( np.sum( GT==P , 1) / GT.shape[1] )  )
         
         train_loss.append(loss.detach().cpu().numpy())
      
@@ -241,10 +263,10 @@ for epch in range(0,80):
             plt.ylim([0, 1.0])
             plt.show()
             
-            # plt.figure
-            # plt.plot(train_ACC)
-            # plt.ylim([0.7,1])
-            # plt.show()
+            plt.figure
+            plt.plot(train_acc)
+            plt.ylim([0.0,1])
+            plt.show()
             
             plt.figure
             plt.plot(lbl.detach().cpu().numpy()[0,:])
