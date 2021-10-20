@@ -24,56 +24,15 @@ import torch
 import torchaudio
 import random
 
-
-def loaderWin(ite, train_list, batch):
- 
-    n = 50000
-    LBL = torch.tensor(np.zeros((batch,int(n),2), dtype=np.float32))
-    Sig = torch.tensor(np.zeros((batch,int(n),1), dtype=np.float32))
+import loaders
     
-    for i in range(0,batch):
-        sig, loc = np.load( train_list[ite+i], allow_pickle=True )
-        N = len(sig)
-        loc.sort()
-        lbl = np.zeros([N,1], dtype=bool)
-        lbl[loc[0]:loc[1],0] = True
-        lbl =  np.float32(lbl)
-        # sig = np.expand_dims(sig,1)
-        
-        if N < n:
-            sig_ = np.interp(np.linspace(0,N-1,n), np.linspace(0,N-1,N), sig)  
-            lbl_ = np.interp(np.linspace(0,N-1,n), np.linspace(0,N-1,N), lbl[:,0])
-        else:      
-            z = loc[1]-n
-            if z<0:
-                z=0
-            k=loc[0]-1
-            if k+n  >sig.shape[0]:
-                k=sig.shape[0]-n-1
 
-            M = random.randrange(z, k)
-            sig_ = sig[range(int(M),int(M)+n)]
-            lbl_ = lbl[range(int(M),int(M)+n)]
-            
-        lbl = np.zeros([n,2]).astype(np.float32)
-        lbl[:,0] = lbl_.T
-        lbl[:,1] = (~lbl_[:].astype(np.bool_)).astype(np.float32).T
-        sig = np.expand_dims(sig_ ,1)
-        # plt.plot(lbl)
-        # plt.show()
-            
-        Sig[i,:,:] = torch.tensor(sig.astype(np.float32))
-        LBL[i,:,:] = torch.tensor(lbl.astype(np.float32))
-    
-    return  Sig, LBL
-
-    
 
 class NetGEN(nn.Module):
     def __init__(self):
         super(NetGEN, self).__init__()
 
-        self.conv1 = nn.Conv1d(in_channels = 1, out_channels = 16 , kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
+        self.conv1 = nn.Conv1d(in_channels = 1,  out_channels = 16 , kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
         self.conv2 = nn.Conv1d(in_channels = 16, out_channels = 32 , kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
         self.conv3 = nn.Conv1d(in_channels = 32, out_channels = 64 , kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
         self.conv4 = nn.Conv1d(in_channels = 64, out_channels = 128 , kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
@@ -164,7 +123,7 @@ class NetGEN(nn.Module):
 
    
 batch=8
-proc=0.8
+proc=0.95
 
 
 path_data = os.path.normpath( 'C:\data\jakubicek\GEN_Data_reload')
@@ -181,49 +140,52 @@ test_list = sigs_list[int(np.round(int(N)*proc))+1:int(N)]
 # # LSTM training○
 
 # net = NetGEN().cuda()
-net = torch.load(r"D:\jakubicek\Bioinformatika\netv5_2.pt")
+net = torch.load(r"D:\jakubicek\Bioinformatika\netv5_0.pt")
 
 # net = torch.load(r"D:\jakubicek\Bioinformatika\netv3_0.pt")
 # net = torch.load(r"D:\jakubicek\Bioinformatika\netv2_0.pt")
 
-optimizer = optim.Adam(net.parameters(), lr=0.0000001,weight_decay=1e-6)
+optimizer = optim.Adam(net.parameters(), lr=0.00001,weight_decay=1e-6)
 # optimizer = optim.SGD(net.parameters(), lr=0.0001, weight_decay=1e-6)
-# scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=3*2880/batch, gamma=0.1, verbose=False)
+# scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1*3593/batch, gamma=0.1, verbose=False)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1, verbose=False)
 # net.init_hiden(batch)
 
 train_loss = []
-test_loss = []
 train_acc = []
-test_acc = []
 train_ACC = []
 
-for epch in range(0,80):
+for epch in range(0,20):
     net.train()
-    n=0
+    ii=0
+    iii=1
+    indx=0
     train_list = np.random.permutation( train_list )
     
     # net.init_hiden(batch)
     
-    for ite in range(0, len(train_list)-batch, batch):
-           
-        net.init_hiden(batch)
-        # net.hidden[0].detach_()○
-        # net.hidden[1].detach_()
-        # net.zero_grad()
+    for ite in range(0, len(train_list), 1):
+    # for ite in range(0, 10, batch):
+        net.train()
+        net.zero_grad()
+        batch=8
         
-        sample,lbl = loaderWin(ite, train_list, batch)
+        if iii==1:
+            sample,lbl = loaders.loaderWinGen(indx, train_list, batch, mode='interp')
+            indx = indx+batch
+        elif iii==2:   
+            sample,lbl = loaders.loaderWinRand(indx, train_list, batch, mode='interp')
+            indx = indx+batch
+        elif iii==3:
+            sample,lbl = loaders.loaderWhole(indx, train_list, 1)
+            iii=0
+            indx = indx+1
+            batch=1
+
+        net.init_hiden(batch)
         
         pred = net(sample.cuda())
-          
-        pred = F.softmax(pred, dim=2)
-        # loss = utilities.dice_loss(pred, lbl.cuda())
-        
-        # pred = pred.permute([0,2,1])
-        # lbl = lbl.permute([0,2,1])
-
-        # lbl = lbl[:,::8,:].cuda()
-        # lbl[0,::100,0]
-        # lbl = lbl[:,0:pred.shape[1],:].cuda()
+        pred = F.softmax(pred, dim=2)             
 
         lbl = lbl.permute([0,2,1]).cuda()
         lbl = F.interpolate(lbl, ( pred.shape[1]))
@@ -231,15 +193,10 @@ for epch in range(0,80):
         # lbl = lbl.permute([0,2,1])
         pred = pred.permute([0,2,1])
         
-        
-        loss = nn.CrossEntropyLoss(weight=torch.tensor((0.1, 0.9)).cuda() )( pred,  lbl.type(torch.long) )
-         
-        # loss = torch.mean( -torch.log(pred[lbl==1]) ) + torch.sigmoid(F.mse_loss(pred[:,:,0],lbl[:,:,0]))
-        # loss = utilities.WCE_loss(pred, lbl.detach().cpu())
-        # loss = utilities.dice_loss(pred, lbl)
-        # loss = nn.CrossEntropyLoss()(  pred[:,:,0].long  ,  lbl[:,:,0].long  )
-        # loss = nn.BCEWithLogitsLoss()(pred[:,:,0], lbl[:,:,0] )
-        # loss = nn.BCEWithLogitsLoss()(pred, lbl ) + torch.sigmoid(F.mse_loss(pred[:,:,0],lbl[:,:,0]))
+        # weight = torch.tensor((0.05, 0.95)).cuda()
+        w1 =  (torch.sum(lbl[0,:])+0.0001) / (lbl.shape[1] +0.0001) 
+        weight = torch.tensor((w1, 1-w1)).cuda()
+        loss = nn.CrossEntropyLoss(weight)( pred,  lbl.type(torch.long) ) 
 
         GT = lbl.detach().cpu().numpy()
         P = pred[:,1,:].detach().cpu().numpy()>0.5
@@ -249,67 +206,14 @@ for epch in range(0,80):
      
         optimizer.zero_grad()
         loss.backward()
-        # nn.utils.clip_grad_norm_(net.parameters(), 1.0)
         optimizer.step()
         # scheduler.step()
-        
-        torch.cuda.empty_cache()
-        
-        if n%20 == 0:
-            
-            # train_ACC.append(np.mean(train_acc))
-            
-            plt.figure
-            plt.plot(train_loss)
-            plt.ylim([0, 1.0])
-            plt.show()
-            
-            plt.figure
-            plt.plot(train_acc)
-            plt.ylim([0.0,1])
-            plt.show()
-            
-            # plt.figure
-            # plt.plot(lbl.detach().cpu().numpy()[0,:])
-            # plt.plot(pred.detach().cpu().numpy()[0,1,:])
-            # # plt.plot(P[0,:])
-            # # plt.ylim([0.7,1])
-            # plt.show()    
 
-            # train_acc = []                 
-            
-        n=n+1
-        
-    for m in range(0, len(test_list)-batch, batch):
-           
-       
-        sample,lbl = loaderWin(m, test_list, batch)
-        
-        pred = net(sample.cuda())
-          
-        pred = F.softmax(pred, dim=2)
-    
-    
-        lbl = lbl.permute([0,2,1]).cuda()
-        lbl = F.interpolate(lbl, ( pred.shape[1]))
-        lbl = lbl[:,0,:]
-    
-        pred = pred.permute([0,2,1])
-        
-        
-        # loss = nn.CrossEntropyLoss(weight=torch.tensor((0.1, 0.9)).cuda() )( pred,  lbl.type(torch.long) )
-         
-    
-        GT = lbl.detach().cpu().numpy()
-        P = pred[:,1,:].detach().cpu().numpy()>0.5
-        test_acc.append( np.mean( np.sum( GT==P , 1) / GT.shape[1] ) )
-    
         torch.cuda.empty_cache()
         
-        
-        if n%20 == 0:
+        if ii%(int((len(train_list)/batch)/10))  == 0:
             
-            # train_ACC.append(np.mean(train_acc))
+            train_ACC.append(np.mean(train_acc))
             
             # plt.figure
             # plt.plot(train_loss)
@@ -317,22 +221,72 @@ for epch in range(0,80):
             # plt.show()
             
             plt.figure
-            plt.plot(test_acc)
-            plt.ylim([0.0,1])
+            plt.plot(-np.log(train_ACC))
+            # plt.ylim([0.0,1])
             plt.show()
             
             plt.figure
             plt.plot(lbl.detach().cpu().numpy()[0,:])
             plt.plot(pred.detach().cpu().numpy()[0,1,:])
             # plt.plot(P[0,:])
-            # plt.ylim([0.7,1])
+            plt.ylim([0.0,1])
             plt.show()    
-    
-            # train_acc = []                 
+
+            train_acc = []                 
             
-        n=n+1
+        ii=ii+1
+        iii=iii+1
         
-        torch.cuda.empty_cache()
+        if indx+8 > len(train_list):
+            break
+        
+    scheduler.step()
+
+    # n=0   
+    # for m in range(0, len(test_list), 1):
+           
+    #     net.init_hiden(batch)
+    #     net.train(mode=False)
+    #     # net.zero_grad()
+        
+    #     sample,lbl = loaderWin(m, test_list, batch )
+        
+    #     pred = net(sample.cuda())
+    #     net.zero_grad()
+          
+    #     pred = F.softmax(pred, dim=2) 
+    
+    #     lbl = lbl.permute([0,2,1]).cuda()
+    #     lbl = F.interpolate(lbl, ( pred.shape[1]))
+    #     lbl = lbl[:,0,:]
+    
+    #     pred = pred.permute([0,2,1])
+        
+    #     # loss = nn.CrossEntropyLoss(weight=torch.tensor((0.1, 0.9)).cuda() )( pred,  lbl.type(torch.long) )
+    
+    #     GT = lbl.detach().cpu().numpy()
+    #     P = pred[:,1,:].detach().cpu().numpy()>0.5
+    #     test_acc.append( np.mean( np.sum( GT==P , 1) / GT.shape[1] ) )
+    
+    #     torch.cuda.empty_cache()
+        
+    #     if n%100 == 0:
+            
+    #         plt.figure
+    #         plt.plot(test_acc)
+    #         plt.ylim([0.0,1])
+    #         plt.show()
+            
+    #         # plt.figure
+    #         # plt.plot(lbl.detach().cpu().numpy()[0,:])
+    #         # plt.plot(pred.detach().cpu().numpy()[0,1,:])
+    #         # # plt.plot(P[0,:])
+    #         # # plt.ylim([0.7,1])
+    #         # plt.show()        
+            
+    #     n=n+1
+        
+    torch.cuda.empty_cache()
 
 
 
