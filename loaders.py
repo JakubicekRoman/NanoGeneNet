@@ -31,6 +31,7 @@ def Load_signal(file):
     
     f = h5py.File(path,'r')
     sig = np.asarray(f[a]['signal']).astype(np.float32)
+    # lbl = np.asarray(f[a]['allele']).astype(np.float32)
     if path.find("gapA") == -1:
         lbl = 0
     else:
