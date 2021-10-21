@@ -9,6 +9,40 @@ import numpy as np
 import numpy.matlib
 import torch
 import random
+import h5py
+
+
+
+# nacteni h5 signalu
+def load_H5(sig_path):
+    f = h5py.File( sig_path , 'r')
+    a = list(f.keys())[0]
+    sig = np.asarray(f[a]['signal'])
+    loc = list(f[a]['coord'])
+    lbl = np.asarray(f[a]['st'])
+
+    return sig, loc, lbl
+
+
+def Load_signal(file):
+    
+    a = file['tname']
+    path = file['file_path']
+    
+    f = h5py.File(path,'r')
+    sig = np.asarray(f[a]['signal']).astype(np.float32)
+    if path.find("gapA") == -1:
+        lbl = 0
+    else:
+        lbl = 1    
+        
+    sig = np.expand_dims(sig,0)
+    sig = torch.tensor(np.expand_dims(sig,2))
+
+    # lbl = torch.tensor(np.expand_dims(lbl,1))
+    
+    return sig, lbl
+
 
 
 # nacteni signalu a okna vzdy obsahujici gen
