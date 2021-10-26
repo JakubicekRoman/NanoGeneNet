@@ -11,20 +11,20 @@ import numpy as np
 import numpy.matlib
 import matplotlib.pyplot as plt
 # import pandas as pd
-from pathlib import Path
+# from pathlib import Path
 import torch.optim as optim
 import glob
 import torch.nn as nn
 import torch.nn.functional as F 
-from torch.utils.data import DataLoader 
-from torch.utils.data import Dataset
-import utilities
+# from torch.utils.data import DataLoader 
+# from torch.utils.data import Dataset
+# import utilities
 import torch
 # from torch import torchaudio 
-import torchaudio
-import random
+# import torchaudio
+# import random
 import h5py
-import time
+# import time
 
 import loaders
     
@@ -34,11 +34,20 @@ class Block(nn.Module):
         super().__init__()
         self.conv1 = nn.Conv1d(in_channels = in_ch,  out_channels = out_ch , kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
         self.relu  = nn.ReLU()
-        self.BN    = nn.BatchNorm1d(out_ch)
+        self.conv2 = nn.Conv1d(in_channels = out_ch,  out_channels = out_ch , kernel_size = 3, stride = 1, padding=1, padding_mode='replicate')
+        self.relu  = nn.ReLU()
+        self.BN = nn.BatchNorm1d(in_ch)
     
     def forward(self, x):
-        return self.relu( self.conv1( self.BN( x ) ) )
-    
+        # return self.relu( self.conv1( self.BN( x ) ) )
+        # y = self.relu( self.conv2( self.relu( self.conv1( self.BN( x ) ) )))
+        # y = self.relu( self.BN( self.conv2( self.relu( self.conv1( x ) ) )))
+        # y = y + x.repeat(1,y.shape[1],1)
+        # y = torch.add(y, x.repeat(1,y.shape[1],1))
+        # return torch.add(y, x.repeat(1,y.shape[1],1))
+        # return self.relu( self.conv1( x ) )
+        return self.relu( self.conv2( self.relu( self.conv1( self.BN( x ) ) )))
+
 
 class Encoder(nn.Module):
     def __init__(self, chs=(1,64,128,256)):
@@ -47,27 +56,31 @@ class Encoder(nn.Module):
         self.pool       = nn.MaxPool1d(3, stride=2, padding=1)
     
     def forward(self, x):
-        ftrs = []
+        # ftrs = []
+        res = x
         for block in self.enc_blocks:
             x = block(x)
             
             # ftrs.append(x)
+            x +=  res.repeat(1,x.shape[1],1)
             
             x = self.pool(x)
+            res = self.pool(res)
         return x
     
   
 class GenNet(nn.Module):
-    def __init__(self, enc_chs=(1,64,128,256), lstm_h_size=256,  num_class=1):
+    def __init__(self, enc_chs=(1,64,128,256), lstm_h_size=256, h_size=1024, num_class=1):
         super().__init__()
         self.lstm_layers = 1
         self.lstm_h_size = lstm_h_size
         
         self.encoder     = Encoder(enc_chs)
         self.lstm        = nn.LSTM(enc_chs[-1], lstm_h_size, batch_first=True,num_layers=self.lstm_layers, bidirectional=False, dropout=0.5)    
-        self.linear1     = nn.Linear(lstm_h_size*2, lstm_h_size, bias=True)
+        
+        self.linear1     = nn.Linear(lstm_h_size, h_size, bias=True)
         self.do          = nn.Dropout(p=0.5)
-        self.linear2     = nn.Linear(lstm_h_size, num_class, bias=True)    
+        self.linear2     = nn.Linear(h_size, num_class, bias=True)    
         self.relu  = nn.ReLU()
         # self.sigm = nn.Sigmoid()
 
@@ -82,64 +95,96 @@ class GenNet(nn.Module):
         # y = enc_ftrs
         y = y.permute([0,2,1])
         
-        y,(self.h,self.c)=self.lstm( y ,(self.h,self.c))
-        
+        _,(self.h,self.c)=self.lstm( y , (self.h,self.c) )
         # C = self.c.permute([1,0,2]).repeat(1,y.shape[1],1)
-        y = torch.cat((self.h, self.c),2)
-        # y = y.permute([1,0,2])
-        
+        # y = torch.cat((self.h, self.c),2)
+        y = self.h
+        y = torch.squeeze(y)
         y=self.linear1(y)
         y=self.relu(y)
-        y=self.do(y)
+        # y=self.do(y)
         y=self.linear2(y)
-        y=self.relu(y)
+        # y=self.relu(y)
+        # y=self.sigm(y)
+        # y = F.softmax(y, dim=1)
 
-        return y   
-    
+        return y
     
     def init_hiden(self,batch):
         self.h=torch.zeros((self.lstm_layers, batch, self.lstm_h_size)).cuda()
         self.c=torch.zeros((self.lstm_layers, batch, self.lstm_h_size)).cuda()
+    
+
+# class ClassGen(nn.Module):
+#     def __init__(self, h_size=256,  num_class=1):
+#         super().__init__()
+#         self.linear1     = nn.Linear(h_size, h_size, bias=True)
+#         self.do          = nn.Dropout(p=0.5)
+#         self.linear2     = nn.Linear(h_size, num_class, bias=True)    
+#         self.relu  = nn.ReLU()
+#         # self.sigm = nn.Sigmoid()
+
+#     def forward(self, x):
+        
+#         # x = x.permute([0,2,1])
+#         x = torch.squeeze(x)
+#         x=self.linear1(x)
+#         x=self.relu(x)
+#         # x=self.do(x)
+#         x=self.linear2(x)
+#         x=self.relu(x)
+        
+#         return x   
     
     
 def CreateDataset(path_data):      
 
     h5_list = glob.glob( os.path.normpath( path_data + "**/*.h5"))  
     sigs_list = []
+    lbl_ist = []
  
     for file_path in h5_list:
         f = h5py.File(file_path)
         for a in f.__iter__():
             sigs_list.append({'file_path': file_path, 'tname': a})
+            # lbl_ist.append(np.asarray(f[a]['st']))
+            lbl_ist.append(np.asarray(dictGen[file_path.split('\\')[-1].split('_')[0]]).astype(np.float32))
                 
-    return sigs_list
+    return sigs_list, lbl_ist
 
 
 
-
-path_data = 'C:\data\jakubicek/all_MLST_genes_new_format'
-dataset = CreateDataset(path_data)   
-
-
-net = GenNet( enc_chs=(1,32,64,128,256), lstm_h_size=256,  num_class=2 ).cuda()
-
-optimizer = optim.Adam(net.parameters(), lr=0.000001,weight_decay=1e-6)
-# scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1, verbose=False)
+dictGen = dict(gapA=0 , infB=1 , mdh=2 , pgi=3 , phoE=4 , rpoB=5 , tonB=6 )
+ 
+path_data = 'C:\data\jakubicek/all_MLST_genes_new_format1'
+dataset, lbl_list = CreateDataset(path_data)
 
 
-batch = 8
+batch = 64
+classes = 2
 
-train_list = dataset[0:15000:100]
+net = GenNet( enc_chs=(1,64,128,256,512), lstm_h_size=512, h_size=512, num_class=classes).cuda()
+
+optimizer = optim.Adam(net.parameters(), lr=0.0001,weight_decay=1e-6)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1, verbose=True)
+
+end_gen = 12530
+
+train_list = dataset[0:end_gen:10]
 # train_list = np.random.permutation( train_list )
+lbl_list = lbl_list[0:end_gen:10]
+
+w1,_= np.histogram(np.array(lbl_list), bins=np.arange(0,7+1,1)-0.5)
+weight = torch.tensor((w1/np.sum(w1)).astype(np.float32) ).cuda()
+
 
 train_loss = []
+train_LOSS = []
 train_acc = []
 train_ACC = []
 
-t = time.time()
 
-
-for epch in range(0,20):
+for epch in range(0,100):
 
     train_list = np.random.permutation( train_list )
     net.train()
@@ -150,73 +195,124 @@ for epch in range(0,20):
     # LBL = torch.zeros((batch, 1), dtype=torch.float32).cuda()
 
     for ite in range(0, len(train_list)-batch, batch):
-        Pred = torch.zeros((batch, 2, 1), dtype=torch.float32).cuda()
-        Lbl = torch.zeros((batch, 1), dtype=torch.float32).cuda().type(torch.long)
+
         net.zero_grad()
+        # net2.zero_grad()
         
-        for b in range(0, batch,1):
-            # net.zero_grad()
-            net.init_hiden(1)
-            file = train_list[ite+b]
-            sig, lbl = loaders.Load_signal(file)
+##################### 
+        # Pred = torch.zeros((batch, classes, 1), dtype=torch.float32).cuda()
+        # Sig = torch.zeros((batch, 1, 50000), dtype=torch.float32).cuda().type(torch.long)
+        # Lbl = torch.zeros((batch, 1), dtype=torch.float32).cuda().type(torch.long)
+        
+        # for b in range(0, batch,1):
+        #     # net.zero_grad()
+        #     net.init_hiden(1)
+        #     file = train_list[ite+b]
+        #     sig, lbl = loaders.Load_whole_signal_h5(file, dictGen)
     
-            pred = net(sig.cuda())
-            net.zero_grad()
-            pred = F.softmax(pred, dim=2)
-            pred = pred.permute([0,2,1])
+        #     pred = net(sig.cuda())
+        #     net.zero_grad()
+        #     pred = F.softmax(pred, dim=2)
+        #     pred = pred.permute([0,2,1])
             
-            Pred[b,:,:] = pred
-            Lbl[b,:] = lbl
-            # torch.tensor(np.expand_dims(np.expand_dims(lbl,0),0)).cuda().type(torch.long)
+        #     Pred[b,:,:] = pred
+        #     Lbl[b,:] = torch.tensor(lbl)
+            
+        #     # # torch.tensor(np.expand_dims(np.expand_dims(lbl,0),0)).cuda().type(torch.long)
+            
+#####################
+
+#######################
+        # Sig, Lbl = loaders.Load_cut_signal_h5(ite, batch, train_list, dictGen) 
+        Sig, Lbl = loaders.Load_cut_gen_h5(ite, batch, train_list, dictGen)
+
+        net.init_hiden(batch)
+        Pred = net(Sig.cuda())
         
-        weight = torch.tensor((0.35, 0.65)).cuda()
-        loss = nn.CrossEntropyLoss(weight)( Pred,   Lbl ) 
- 
+        # net.init_hiden(batch)
+        # Feat = net(Sig.cuda())
+        # Pred = net2(Feat.cuda())
+        Pred = F.softmax(Pred, dim=1)
+        # Pred = F.sigmoid(Pred)
+        # # Pred = Pred.permute([1,2,0])
+####################3
+      
+        # w1,_= np.histogram(np.array(lbl_list), bins=np.arange(0,7+1,1)-0.5)
+        # weight = torch.tensor((w1/np.sum(w1)).astype(np.float32) ).cuda()
+        weight =torch.tensor( (0.6, 0.4) ).cuda()
+        
+        # loss = nn.CrossEntropyLoss(weight)( Pred,   Lbl ) 
+        # loss = nn.CrossEntropyLoss(weight)( Pred,   torch.squeeze(Lbl.cuda().type(torch.long)) ) 
+        # loss = nn.CrossEntropyLoss(weight[0:2])( Pred.squeeze(),   torch.squeeze(Lbl.cuda().type(torch.long)) ) 
+        # loss = nn.CrossEntropyLoss()( Pred.squeeze(),   torch.squeeze(Lbl.cuda().type(torch.long)) ) 
+        loss = nn.CrossEntropyLoss(weight)( Pred.squeeze(),   torch.squeeze(Lbl.cuda().type(torch.long)) )
+
+        # one_hot = torch.nn.functional.one_hot(Lbl.squeeze().type(torch.long), 7)
+        # loss = -torch.mean( torch.log(Pred[one_hot==1]))
+        
+        # loss = nn.CrossEntropyLoss()( gg,   torch.squeeze(Lbl.cuda().type(torch.long)) )
+        
         optimizer.zero_grad()
         loss.backward()
         # nn.utils.clip_grad_norm_(net.parameters(), max_norm=2.0, norm_type=2)
-        nn.utils.clip_grad_value_(net.parameters(), clip_value=1.0)
+        # nn.utils.clip_grad_value_(net.parameters(), clip_value=1.0)
         optimizer.step()
         # scheduler.step()
+        
+        # optimizer2.zero_grad()
+        # # loss.backward()
+        # # nn.utils.clip_grad_norm_(net.parameters(), max_norm=2.0, norm_type=2)
+        # # nn.utils.clip_grad_value_(net2.parameters(), clip_value=2.0)
+        # optimizer2.step()
+        # # scheduler.step()
 
         net.zero_grad()
+        # net2.zero_grad()
         torch.cuda.empty_cache()
         
         acc = (Lbl.detach().cpu().numpy().squeeze() == (Pred.detach().cpu().numpy().squeeze().argmax(1))).astype(np.dtype(float))
         
         train_loss.append(loss.detach().cpu().numpy())
-        train_acc.append( np.mean(acc)  )
+        train_acc.append( np.mean(acc) )
         
         # train_ACC.append(np.mean(train_acc))
         
-        # if ii%(int((len(train_list))/batch/10))  == 0:
-        if ii%10 == 0:   
-            # train_ACC.append(np.mean(train_acc))
-            # elapsed = time.time() - t
+        if ii%(int((len(train_list))/batch/2))  == 0:
+        # if ii%10 == 0: 
+            
+            train_LOSS.append(np.mean(train_loss))
             plt.figure
-            plt.plot(train_loss)
+            plt.plot( train_LOSS )
+            # plt.plot( train_loss )
             # plt.ylim([0, 1.0])
             plt.show()
+            
+            train_ACC.append(np.mean(train_acc))
+            plt.figure
+            plt.plot(train_ACC)
+            # plt.ylim([0.0,1])
+            plt.show()
 
+            train_acc = []
+            train_loss = []
+            
+            
+            
             # plt.figure
-            # plt.plot(-np.log(train_ACC))
+            # plt.plot( train_loss )
+            # # plt.ylim([0, 1.0])
+            # plt.show()
+            
+            # plt.figure
+            # plt.plot(train_acc)
             # # plt.ylim([0.0,1])
             # plt.show()
             
-            plt.figure
-            plt.plot(train_acc)
-            plt.ylim([0.0,1])
+            plt.figure()
+            plt.plot(Lbl.detach().cpu().numpy())
+            plt.plot(Pred[:,1].detach().cpu().numpy())
             plt.show()
             
-            # plt.figure
-            # plt.plot(lbl.detach().cpu().numpy()[0,:])
-            # plt.plot(pred.detach().cpu().numpy()[0,1,:])
-            # # plt.plot(P[0,:])
-            # plt.ylim([0.0,1])
-            # plt.show()    
-
-            # train_acc = []   
-              
             # t = time.time()
         ii=ii+1
           
@@ -227,7 +323,7 @@ for epch in range(0,20):
     # plt.ylim([0.0,1])
     # plt.show()
         
- 
+    scheduler.step()
 
 
 # batch=8

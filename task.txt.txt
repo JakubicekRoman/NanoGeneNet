@@ -8,3 +8,4 @@ Planning:
 	- uceni na h5, validace na novych genomech, from scratch - otazka zda a vyrezech nebo originalech - augmentace
 	- doucit na realnych whole ale h5 i s validaci
 	- zkusit nadvzorkovani
+	- zakomponovat signaly bez genu, ale ty realne
