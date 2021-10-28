@@ -22,6 +22,18 @@ def WCE_loss(X, Y):
     return WCE
 
 
+def comp_class_acc(clbl, cacc):
+    hi=np.zeros((8))
+    for i in range(0,8):
+        ind = (clbl == i)
+        acc = np.mean( cacc[ind] )
+        hi[i] = acc
+        
+    return hi
+
+
+
+
 # def loader(ite,sigs_list,trainIND, batch):
 #     # M = int(5000)
 #     M1 = random.randrange(100, 10000)

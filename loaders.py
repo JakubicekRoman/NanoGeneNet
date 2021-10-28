@@ -47,7 +47,7 @@ def Load_whole_signal_h5(file, dictGen):
 
 def Load_cut_signal_h5(ite, batch, train_list, dictGen) :
     
-    n = 30000
+    n = 50000
     Lbl = torch.tensor(np.zeros((batch,1), dtype=np.float32))
     Sig = torch.tensor(np.zeros((batch,int(n),1), dtype=np.float32))
     
@@ -88,8 +88,8 @@ def Load_cut_signal_h5(ite, batch, train_list, dictGen) :
     return Sig, Lbl
 
 
-def Load_cut_gen_h5(ite, batch, train_list, dictGen) :
-    
+
+def Load_cut_gen_h5(ite, batch, train_list, dictGen) :   
     n = 10000
     Lbl = torch.tensor(np.zeros((batch,1), dtype=np.float32))
     Sig = torch.tensor(np.zeros((batch,int(n),1), dtype=np.float32))
@@ -121,6 +121,8 @@ def Load_cut_gen_h5(ite, batch, train_list, dictGen) :
         Lbl[i,:] = torch.tensor(lbl)    
     
     return Sig, Lbl
+
+
 
 
 
@@ -172,8 +174,8 @@ def loaderWinRand(ite, train_list, batch, mode='interp'):
 # nacteni vzreyu signalu ciste nahodne
 def loaderWinGen(ite, train_list, batch, mode='interp'):
 
-    # n = 100000
-    n = random.randrange(20000, 100000)
+    n = 50000
+    # n = random.randrange(20000, 100000)
     LBL = torch.tensor(np.zeros((batch,int(n),2), dtype=np.float32))
     Sig = torch.tensor(np.zeros((batch,int(n),1), dtype=np.float32))
     
@@ -217,7 +219,7 @@ def loaderWinGen(ite, train_list, batch, mode='interp'):
 
 
 
- # nacteni celzch signalu
+  # nacteni celzch signalu
 def loaderWhole(ite, train_list, batch=1):
     sig, loc = np.load( train_list[ite], allow_pickle=True )
     N = len(sig)

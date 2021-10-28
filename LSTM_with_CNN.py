@@ -139,13 +139,13 @@ test_list = sigs_list[int(np.round(int(N)*proc))+1:int(N)]
 
 # # LSTM training○
 
-# net = NetGEN().cuda()
-net = torch.load(r"D:\jakubicek\Bioinformatika\netv5_0.pt")
+net = NetGEN().cuda()
+# net = torch.load(r"D:\jakubicek\Bioinformatika\netv5_0.pt")
 
 # net = torch.load(r"D:\jakubicek\Bioinformatika\netv3_0.pt")
 # net = torch.load(r"D:\jakubicek\Bioinformatika\netv2_0.pt")
 
-optimizer = optim.Adam(net.parameters(), lr=0.00001,weight_decay=1e-6)
+optimizer = optim.Adam(net.parameters(), lr=0.00001, weight_decay=1e-6)
 # optimizer = optim.SGD(net.parameters(), lr=0.0001, weight_decay=1e-6)
 # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1*3593/batch, gamma=0.1, verbose=False)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1, verbose=False)
@@ -169,7 +169,7 @@ for epch in range(0,20):
         net.train()
         net.zero_grad()
         batch=8
-        
+        iii=1
         if iii==1:
             sample,lbl = loaders.loaderWinGen(indx, train_list, batch, mode='interp')
             indx = indx+batch

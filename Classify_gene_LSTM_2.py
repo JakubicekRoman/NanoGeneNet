@@ -131,7 +131,7 @@ classes = 2
 
 net = GenNet( enc_chs=(1,64,128,256,512), lstm_h_size=512, h_size=1024, num_class=classes).cuda()
 
-optimizer = optim.Adam(net.parameters(), lr=0.001,weight_decay=1e-6)
+optimizer = optim.Adam(net.parameters(), lr=0.0001,weight_decay=1e-6)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1, verbose=True)
 
 
@@ -152,7 +152,7 @@ test_acc = []
 test_ACC = []
 
 
-for epch in range(0,200):
+for epch in range(0,100):
 
     train_list = np.random.permutation( train_list )
     net.train()
@@ -167,7 +167,7 @@ for epch in range(0,200):
         net.train(mode=True)
         net.zero_grad()
      
-        # Sig, Lbl = loaders.Load_cut_signal_h5(ite, batch, train_list, dictGen) 
+        # Sig, Lbl = loaders.Load_cut_signal_h5(ite, batch, train_list, dictGen)
         Sig, Lbl = loaders.Load_cut_gen_h5(ite, batch, train_list, dictGen)
 
         net.init_hiden(batch)
@@ -191,73 +191,68 @@ for epch in range(0,200):
         
         # train_ACC.append(np.mean(train_acc))
         
-        # if ii%(int((len(train_list))/batch/5))  == 0:
+        if ii%(int((len(train_list)/batch/2)))  == 0:
         # if ii%10 == 0:
+            test_list = np.random.permutation( test_list_o )[0:len(test_list_o):20]
+            for i in range(0, len(test_list)-batch, batch): 
+                with torch.no_grad():
+                    net.train(mode=False)
+                    # net.zero_grad()
+                 
+                    # Sig, Lbl = loaders.Load_cut_signal_h5(ite, batch, train_list, dictGen) 
+                    Sig, Lbl = loaders.Load_cut_gen_h5(i, batch, test_list, dictGen)
             
-        # ii=ii+1
-           
+                    net.init_hiden(batch)
+                    Pred = net(Sig.cuda())
+                    Pred = F.softmax(Pred, dim=1)
+                    net.zero_grad()
+                    
+                    # w1,_= np.histogram(np.array(lbl_list), bins=np.arange(0,7+1,1)-0.5)
+                    # weight = torch.tensor((w1/np.sum(w1)).astype(np.float32) ).cuda()
+                    # loss = nn.CrossEntropyLoss()( Pred.squeeze(),   torch.squeeze(Lbl.cuda().type(torch.long)) )
+                    
+                    acc = (Lbl.detach().cpu().numpy().squeeze() == (Pred.detach().cpu().numpy().squeeze().argmax(1))).astype(np.dtype(float))   
+                    test_acc.append( np.mean(acc) )
+            train_LOSS.append(np.mean(train_loss))
+            plt.figure()
+            plt.plot( train_LOSS )
+            # plt.plot( train_loss )
+            # plt.ylim([0, 1.0])
+            plt.show()
+            
+            train_loss = []
          
-    train_LOSS.append(np.mean(train_loss))
-    plt.figure()
-    plt.plot( train_LOSS )
-    # plt.plot( train_loss )
-    # plt.ylim([0, 1.0])
-    plt.show()
-    
-    train_loss = []
- 
-    # plt.figure
-    # plt.plot( train_loss )
-    # # plt.ylim([0, 1.0])
-    # plt.show()
-    
-    # plt.figure
-    # plt.plot(train_acc)
-    # # plt.ylim([0.0,1])
-    # plt.show()
-    
-    plt.figure()
-    plt.plot(Lbl.detach().cpu().numpy())
-    plt.plot(Pred[:,1].detach().cpu().numpy())
-    plt.show()
-    
-    
-    test_list = np.random.permutation( test_list_o )[0:len(test_list_o):20]
-    for i in range(0, len(test_list)-batch, batch): 
-        with torch.no_grad():
-            net.train(mode=False)
-            # net.zero_grad()
-         
-            # Sig, Lbl = loaders.Load_cut_signal_h5(ite, batch, train_list, dictGen) 
-            Sig, Lbl = loaders.Load_cut_gen_h5(i, batch, test_list, dictGen)
-    
-            net.init_hiden(batch)
-            Pred = net(Sig.cuda())
-            Pred = F.softmax(Pred, dim=1)
-            net.zero_grad()
+            # plt.figure
+            # plt.plot( train_loss )
+            # # plt.ylim([0, 1.0])
+            # plt.show()
             
-            # w1,_= np.histogram(np.array(lbl_list), bins=np.arange(0,7+1,1)-0.5)
-            # weight = torch.tensor((w1/np.sum(w1)).astype(np.float32) ).cuda()
-            # loss = nn.CrossEntropyLoss()( Pred.squeeze(),   torch.squeeze(Lbl.cuda().type(torch.long)) )
+            # plt.figure
+            # plt.plot(train_acc)
+            # # plt.ylim([0.0,1])
+            # plt.show()
             
-            acc = (Lbl.detach().cpu().numpy().squeeze() == (Pred.detach().cpu().numpy().squeeze().argmax(1))).astype(np.dtype(float))   
-            test_acc.append( np.mean(acc) )
+            plt.figure()
+            plt.plot(Lbl.detach().cpu().numpy())
+            plt.plot(Pred[:,1].detach().cpu().numpy())
+            plt.show()
             
-    torch.cuda.empty_cache()
-            
+            train_ACC.append(np.mean(train_acc))
+            test_ACC.append(np.mean(test_acc))
+            plt.figure()
+            plt.plot(train_ACC)
+            plt.plot(test_ACC)
+            # plt.ylim([0.0,1])           
+            plt.show()
         
-    train_ACC.append(np.mean(train_acc))
-    test_ACC.append(np.mean(test_acc))
-    plt.figure()
-    plt.plot(train_ACC)
-    plt.plot(test_ACC)
-    # plt.ylim([0.0,1])           
-    plt.show()
-
-    train_acc = [] 
-    test_acc = []     
-    # t = time.time()
-       
+            train_acc = [] 
+            test_acc = []     
+            # t = time.time()
+        
+        ii=ii+1
+          
+            
+    torch.cuda.empty_cache()   
           
     # train_ACC.append(np.mean(train_acc))
     
