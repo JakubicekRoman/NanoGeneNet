@@ -138,30 +138,30 @@ dictGen = dict(gapA=0 , infB=1 , mdh=2 , pgi=3 , phoE=4 , rpoB=5 , tonB=6, run=7
 
 path_data = 'C:\data\jakubicek/all_MLST_genes_new_format1/train'
 tl, tll = CreateDataset(path_data, (0,145))
-train_list = SelectRandomData(tl,tll,2000)     
+train_list = SelectRandomData(tl,tll,2500)     
 
 path_data = 'C:\data\jakubicek\signals_without_all_mlst_genes'
 empty_list, _  = CreateDataset(path_data, (0,54))
 empty_list = np.random.permutation( empty_list ).tolist()
 
-for l in range(0,5000):
+for l in range(0,7000):
     train_list.append( empty_list[l] )
 
 path_data = 'C:\data\jakubicek/all_MLST_genes_new_format1/test'
 test_list_o , _ = CreateDataset(path_data, (0,-1))
 # test_list_o = random.sample(test_list_o , 1000)
 
-for l in range(6000,7000):
+for l in range(7000,9500):
     test_list_o.append( empty_list[l] )
 
 # # LSTM training○
 
 # net = NetGEN(enc_chs=(1,16,32,64,128), lstm_h_size=256, h_size=512).cuda()
-net = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v3_2.pt")
+net = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v3_3.pt")
 
 optimizer = optim.Adam(net.parameters(), lr=0.0001,weight_decay=1e-6)
 # optimizer = optim.SGD(net.parameters(), lr=0.0001, weight_decay=1e-6)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5, verbose=True)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1, verbose=True)
 
 
 train_loss = []
@@ -173,7 +173,7 @@ test_ACC = []
 batchTrain = 16
 batch = batchTrain
 
-for epch in range(0,50):
+for epch in range(0,10):
     net.train()
     ii=0
     train_list = SelectRandomData(tl,tll,2000)     
@@ -201,7 +201,10 @@ for epch in range(0,50):
         
         # weight = torch.tensor((0.05, 0.95)).cuda()
         w1 =  (torch.sum(lbl[:])+0.0001) / (lbl.shape[1]*lbl.shape[0] +0.0001) 
+        if w1<=0.7:
+           w1=torch.tensor(0.01)
         weight = torch.tensor((w1, 1-w1)).cuda()
+        # weight = torch.tensor((0.5, 0.5)).cuda()
         loss = nn.CrossEntropyLoss(weight)( pred,  lbl.type(torch.long) ) 
         
         # loss = nn.BCEWithLogitsLoss(1-w1)( pred,  lbl ) 
@@ -273,8 +276,9 @@ for epch in range(0,50):
             test_ACC.append( (np.mean(test_acc)) )
             train_ACC.append( (np.mean(train_acc)) )
             plt.figure
-            plt.plot(test_ACC)
             plt.plot( train_ACC )
+            plt.plot(test_ACC)
+
             # plt.ylim([0, 1.0])
             plt.show() 
             
@@ -288,7 +292,8 @@ for epch in range(0,50):
             plt.figure
             plt.bar(np.arange(0,8), hi)
             # plt.ylim([0, 1.0])
-
+            plt.show() 
+            
             train_acc = []
             test_acc=[]
             

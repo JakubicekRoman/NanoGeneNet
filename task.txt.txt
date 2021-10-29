@@ -1,11 +1,11 @@
 Running:
-	7_0.pt - naucene z 5_0, kombinace vsech nacitacu, gen, rand i whole
+	3_3.pt - naucene z 3_2, vyrez genu, doucovani prazdnych
 
 Planning:
-	- doucit na whole orig signals, 5_0.pt
-	- nacitat pro h5
-	- validace na h5 novzch genomech
-	- uceni na h5, validace na novych genomech, from scratch - otazka zda a vyrezech nebo originalech - augmentace
-	- doucit na realnych whole ale h5 i s validaci
-	- zkusit nadvzorkovani
-	- zakomponovat signaly bez genu, ale ty realne
+	- pridat residualni vrstvy, jeslti se to rozjede nakonec
+	- zkusit ucit rovnou s prazdnymi signaly, od zacatku, zkontrolovat vahy prazdnych signalu
+
+	- vymyslet klasifikaci, jako dasi navazujici sit
+		- nova sit...  Enc - lstm - fcn, vystup y predchoyi pozit jako attention
+		- vyuzit features y encoderu a nove lstm a fcn
+		- nebo jen nove fcn a vyuzit c a h z LSTM
