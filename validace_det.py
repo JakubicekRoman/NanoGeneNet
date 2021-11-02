@@ -72,17 +72,17 @@ empty_list = np.random.permutation( empty_list ).tolist()
 
 test_list_o = []
 
-# path_data = 'C:\data\jakubicek/all_MLST_genes_new_format1/test'
-# test_list_o , _ = CreateDataset(path_data, (0,-1))
+path_data = 'C:\data\jakubicek/all_MLST_genes_new_format1/test'
+test_list_o , _ = CreateDataset(path_data, (0,-1))
 
 
-for l in range(7000,7100):
-    test_list_o.append( empty_list[l] )
+# for l in range(8000,8500):
+#     test_list_o.append( empty_list[l] )
 
 ## LSTM training○
 
 # net = NetGEN(enc_chs=(1,16,32,64,128), lstm_h_size=256, h_size=512).cuda()
-net = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v3_3.pt")
+net = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v3_6.pt")
 
 
 test_acc = [] 

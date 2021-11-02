@@ -8,10 +8,19 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
  
-def dice_loss(X, Y):
+def dice_loss_torch(X, Y):
     eps = 1.
     dice = ((2. * torch.sum(X*Y) + eps) / (torch.sum(X) + torch.sum(Y) + eps) )
     return 1 - dice
+
+
+
+def dice_torch(X, Y):
+    eps = 1.
+    dice = ((2. * torch.sum(X*Y) + eps) / (torch.sum(X) + torch.sum(Y) + eps) )
+    return dice
+
+
 
 def WCE_loss(X, Y):
     w = np.sum(  np.array( Y[:,:,0]) ,1)  / Y.shape[1]

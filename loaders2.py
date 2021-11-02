@@ -31,24 +31,56 @@ def Load_whole_signal_h5(file, dictGen):
     
     f = h5py.File(path,'r')
     sig = np.asarray(f[a]['signal']).astype(np.float32)
+    
     N = len(sig)
     
-    sig = np.interp(np.linspace(0,N-1,int(N/4)), np.linspace(0,N-1,N), sig).astype(np.float32)
+    loc = np.asarray(f[a]['coord']).astype(np.float32)
+    loc.sort()
+    lbl = np.zeros([N,], dtype=bool)
+    lbl[int(loc[0]):int(loc[1])] = True
+    lbl =  np.float32(lbl)
     
-    lbl = np.asarray(dictGen[path.split('\\')[-1].split('_')[0]]).astype(np.float32)
+    n = 100000
+    if N>1000000:
+        z = loc[1]-n
+        if z<0:
+            z=0
+        k=loc[0]-1
+        if k+n  >sig.shape[0]:
+            k=sig.shape[0]-n-1
+        if k<=z:
+            z=0
+            k=1
+        M = random.randrange(int(z), int(k))
+        sig = sig[range(int(M),int(M)+n)]
+        lbl = lbl[range(int(M),int(M)+n)]
+        
+        # sig = np.interp(np.linspace(0,N-1,int(N/4)), np.linspace(0,N-1,N), sig).astype(np.float32)
+        # lbl = np.interp(np.linspace(0,N-1,int(N/4)), np.linspace(0,N-1,N), lbl).astype(np.float32)
+        
+    # lbl = np.asarray(dictGen[path.split('\\')[-1].split('_')[0]]).astype(np.float32)
     
     sig = np.expand_dims(sig,0)
     sig = torch.tensor(np.expand_dims(sig,2))
+    
+    lbl = np.expand_dims(lbl,0)
+    lbl = torch.tensor(np.expand_dims(lbl,2))
+    
+    clbl = torch.tensor(np.zeros((1), dtype=np.float32))
+    clbl[0] = torch.tensor( np.asarray(dictGen[path.split('\\')[-1].split('_')[0]]).astype(np.float32) )
+    
 
+    
     # lbl = torch.tensor(np.expand_dims(lbl,1))
     
-    return sig, lbl
+    return sig, lbl, clbl
 
 
-def Load_cut_signal_h5(ite, batch, train_list, dictGen) :
+def Load_cut_signal_h5(ite, batch, train_list, dictGen):
     
     # n = 50000
-    n = random.randrange(30000, 70000)
+    # n = random.randrange(30000, 70000)
+    n = random.randrange(20000, 80000)
     Lbl = torch.tensor(np.zeros((batch,int(n),1), dtype=np.float32))
     Sig = torch.tensor(np.zeros((batch,int(n),1), dtype=np.float32))
     Clbl = torch.tensor(np.zeros((batch), dtype=np.float32))

@@ -16,6 +16,7 @@ import torch.nn.functional as F
 import torch
 import random
 # import pandas as pd
+from torch.nn.utils.rnn import pad_sequence
 
 import utilities
 import h5py
@@ -138,84 +139,100 @@ dictGen = dict(gapA=0 , infB=1 , mdh=2 , pgi=3 , phoE=4 , rpoB=5 , tonB=6, run=7
 
 path_data = 'C:\data\jakubicek/all_MLST_genes_new_format1/train'
 tl, tll = CreateDataset(path_data, (0,145))
-train_list = SelectRandomData(tl,tll,2500)     
+train_list = SelectRandomData(tl,tll,2000)     
 
 path_data = 'C:\data\jakubicek\signals_without_all_mlst_genes'
 empty_list, _  = CreateDataset(path_data, (0,54))
 empty_list = np.random.permutation( empty_list ).tolist()
 
-for l in range(0,7000):
+for l in range(0,2000):
     train_list.append( empty_list[l] )
 
 path_data = 'C:\data\jakubicek/all_MLST_genes_new_format1/test'
 test_list_o , _ = CreateDataset(path_data, (0,-1))
 # test_list_o = random.sample(test_list_o , 1000)
 
-for l in range(7000,9500):
+for l in range(7000,8500):
     test_list_o.append( empty_list[l] )
 
 # # LSTM training○
 
-# net = NetGEN(enc_chs=(1,16,32,64,128), lstm_h_size=256, h_size=512).cuda()
-net = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v3_3.pt")
+# net = NetGEN(enc_chs=(1,16,32,64,128), lstm_h_size=256, h_size=512).cuda()H
+net = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v3_6.pt")
 
-optimizer = optim.Adam(net.parameters(), lr=0.0001,weight_decay=1e-6)
+optimizer = optim.Adam(net.parameters(), lr=0.0000001,weight_decay=0.9)
 # optimizer = optim.SGD(net.parameters(), lr=0.0001, weight_decay=1e-6)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1, verbose=True)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1, verbose=True)
 
 
 train_loss = []
-train_acc = []
-train_ACC = []
-test_acc = [] 
-test_ACC = []
+train_dice = []
+train_DICE = []
+test_dice = [] 
+test_DICE = []
 
-batchTrain = 16
+batchTrain = 1
 batch = batchTrain
 
 for epch in range(0,10):
     net.train()
     ii=0
-    train_list = SelectRandomData(tl,tll,2000)     
+    # train_list = SelectRandomData(tl,tll,2000)
     train_list = np.random.permutation( train_list )
+    # train_list = train_list[0:10000]
     
     for ite in range(0, len(train_list)-batch, batch):
     # for ite in range(0, 10, batch):
         batch = batchTrain
+                
+        # for bt in range(0,batch):
         net.train()
         net.zero_grad()
         
-        sample,lbl,_= loaders2.Load_cut_signal_h5(ite, batch, train_list, dictGen)
+        # sample,lbl,_= loaders2.Load_cut_signal_h5(ite, batch, train_list, dictGen)
+        sample, lbl, clbl = loaders2.Load_whole_signal_h5(train_list[ite], dictGen)
 
-        net.init_hiden(batch)
+        net.init_hiden(1)
         
         pred = net(sample.cuda())
-        pred = F.softmax(pred, dim=2)             
+        pred = F.softmax(pred, dim=2)  
+        net.zero_grad()
 
         lbl = lbl.permute([0,2,1]).cuda()
         lbl = F.interpolate(lbl, ( pred.shape[1]))
         # lbl = lbl[:,0,:]
-        # lbl = lbl.permute([0,2,1])
+        lbl = lbl.permute([0,2,1])
+        
+        
         pred = pred.permute([0,2,1])
-        lbl = lbl.squeeze()
-        
+        lbl = lbl[:,:,0]
+        # lbl = lbl.squeeze()
         # weight = torch.tensor((0.05, 0.95)).cuda()
-        w1 =  (torch.sum(lbl[:])+0.0001) / (lbl.shape[1]*lbl.shape[0] +0.0001) 
-        if w1<=0.7:
-           w1=torch.tensor(0.01)
-        weight = torch.tensor((w1, 1-w1)).cuda()
-        # weight = torch.tensor((0.5, 0.5)).cuda()
-        loss = nn.CrossEntropyLoss(weight)( pred,  lbl.type(torch.long) ) 
+        # w1 =  (torch.sum(lbl[:])+0.01) / (lbl.shape[1]*lbl.shape[0] +0.01) 
+        # # if w1<=0.01:
+        # #     w1=torch.tensor(0.7)
+        # # w1 = 0.2
+        # weight = torch.tensor((w1, 1-w1)).cuda()
         
+        weight = torch.tensor((0.01, 0.99)).cuda()  
+        loss = nn.CrossEntropyLoss(weight)( pred,  lbl.type(torch.long) )
+        
+        # loss = utilities.dice_loss_torch( pred[0,1,:], lbl[0,:]  )
+        # loss = utilities.dice_loss_torch( pred[0,:,1],  lbl[0,:,0].type(torch.long)  )
+        # loss = loss + ( nn.CrossEntropyLoss(weight)( pred,  lbl.type(torch.long) ) )/batch
+    
+    
         # loss = nn.BCEWithLogitsLoss(1-w1)( pred,  lbl ) 
-
-        GT=np.zeros(pred.shape)
-        GT[:,1,:] = lbl.detach().cpu().numpy()
-        GT[:,0,:] = ( 1-lbl.detach().cpu().numpy() )
-        P = pred.detach().cpu().numpy()>0.5
+        # torch.cuda.empty_cache()
+            
+        # GT=np.zeros(pred.shape)
+        # GT = lbl.detach().cpu().numpy()
+        # GT[:,0,:] = ( 1-lbl.detach().cpu().numpy() )
+        # P = pred[:,1,:].detach().cpu().numpy()>0.5
         
-        train_acc.append( np.mean( np.sum( np.sum( GT==P,2),1) / (GT.shape[1]*GT.shape[2]) )  )        
-        train_loss.append(loss.detach().cpu().numpy())
+        train_dice.append(  utilities.dice_torch(( pred[:,1,:]>0.5 ), lbl ).detach().cpu().numpy()  )
+        # train_acc.append( np.mean( np.sum( np.sum( GT==P,2),1) / (GT.shape[1]*GT.shape[2]) )  )        
+        train_loss.append( loss.detach().cpu().numpy() )
      
         optimizer.zero_grad()
         loss.backward()
@@ -224,7 +241,7 @@ for epch in range(0,10):
 
         torch.cuda.empty_cache()
         
-        if ii%(int((len(train_list)/batch)/10))  == 0:
+        if ii%(int((len(train_list)/batch)/20))  == 0:
         # if ii%(10)  == 0:
             # train_ACC.append(np.mean(train_acc))
             
@@ -235,51 +252,58 @@ for epch in range(0,10):
             plt.ylim([0.0,1])
             plt.show() 
             
-            class_acc=np.array((0,))
+            # class_acc=np.array((0,))
             class_lbl=np.array((0,))
-            test_list = np.random.permutation( test_list_o )[0:len(test_list_o):50]  
-            batch = 128
+            class_dice=np.array((0,))
+            
+            test_list = np.random.permutation( test_list_o )[0:len( test_list_o ):50]  
+            batch = 1
             for i in range(0, len(test_list)-batch, batch):
             # for ite in range(0, 10, batch):
                 with torch.no_grad():
                     
                     net.train(mode=False)            
-                    sample, lbl, clbl = loaders2.Load_cut_signal_h5(i, batch, test_list, dictGen)
-            
+                    # sample, lbl, clbl = loaders2.Load_cut_signal_h5(i, batch, test_list, dictGen)
+                    sample, lbl, clbl = loaders2.Load_whole_signal_h5(test_list[i], dictGen)
+                    
                     net.init_hiden(batch)            
                     pred = net(sample.cuda())
-                    pred = F.softmax(pred, dim=2)             
+                    pred = F.softmax(pred, dim=2)
             
                     lbl = lbl.permute([0,2,1]).cuda()
                     lbl = F.interpolate(lbl, ( pred.shape[1]))
+                    lbl = lbl[:,0,:]
                     pred = pred.permute([0,2,1])
-                    lbl = lbl.squeeze()
+                    # lbl = lbl.squeeze()
                     
-                    GT=np.zeros(pred.shape)
-                    GT[:,1,:] = lbl.detach().cpu().numpy()
-                    GT[:,0,:] = ( 1-lbl.detach().cpu().numpy() )
-                    P = pred.detach().cpu().numpy()>0.5
+                    GT = lbl.detach().cpu().numpy()
+                    P = pred[:,1,:].detach().cpu().numpy()>0.5
                     
-                    test_acc.append( np.mean( np.sum( np.sum( GT==P,2),1) / (GT.shape[1]*GT.shape[2]) )  )
-                    class_acc = np.concatenate((class_acc, ( np.sum( np.sum( GT==P,2),1) / (GT.shape[1]*GT.shape[2]) ) ) )
+                    dice = torch.tensor(np.zeros((1), dtype=np.float32))
+                    dice[0] = utilities.dice_torch(torch.tensor(P), torch.tensor(GT))
+                    test_dice.append(dice.numpy()[0])
+                    
+                    # test_acc.append( np.mean( np.sum( np.sum( GT==P,2),1) / (GT.shape[1]*GT.shape[2]) )  )
+                    # class_acc = np.concatenate((class_acc, ( np.sum( np.sum( GT==P,2),1) / (GT.shape[1]*GT.shape[2]) ) ) )
                     class_lbl = np.concatenate( (class_lbl, clbl.numpy() ) )
+                    class_dice = np.concatenate( (class_dice, dice.numpy() ) )
                     
             torch.cuda.empty_cache()
             
-            hi = utilities.comp_class_acc(class_lbl, class_acc)
+            # hi = utilities.comp_class_acc(class_lbl, class_acc)
+            hd = utilities.comp_class_acc(class_lbl, class_dice)
             
             plt.figure
             plt.plot(train_loss)
             # plt.ylim([0, 1.0])
             plt.show()        
             
-            test_ACC.append( (np.mean(test_acc)) )
-            train_ACC.append( (np.mean(train_acc)) )
+            test_DICE.append( (np.mean(test_dice)) )
+            train_DICE.append( (np.mean(train_dice)) )
             plt.figure
-            plt.plot( train_ACC )
-            plt.plot(test_ACC)
-
-            # plt.ylim([0, 1.0])
+            plt.plot( train_DICE )
+            plt.plot( test_DICE )
+            # plt.ylim([0.8, 1.0])
             plt.show() 
             
             # plt.figure
@@ -290,12 +314,18 @@ for epch in range(0,10):
             # plt.show() 
             
             plt.figure
-            plt.bar(np.arange(0,8), hi)
-            # plt.ylim([0, 1.0])
+            plt.bar(np.arange(0,8), hd)
+            # plt.ylim([0.5, 1.0])
             plt.show() 
             
-            train_acc = []
-            test_acc=[]
+            # width = 0.35
+            # fig, ax = plt.subplots()
+            # rects1 = ax.bar(np.arange(0,8) - width/2, hi, width)
+            # rects2 = ax.bar(np.arange(0,8) + width/2, hd, width)
+            # plt.show() 
+            
+            train_dice = []
+            test_dice = []
             
         ii=ii+1
         print('Epocha: ' + str(epch) + ', Iterace: ' + str(ite/(len(train_list))*100) )
