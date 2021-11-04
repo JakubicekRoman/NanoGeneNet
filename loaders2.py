@@ -68,9 +68,6 @@ def Load_whole_signal_h5(file, dictGen):
     
     clbl = torch.tensor(np.zeros((1), dtype=np.float32))
     clbl[0] = torch.tensor( np.asarray(dictGen[path.split('\\')[-1].split('_')[0]]).astype(np.float32) )
-    
-
-    
     # lbl = torch.tensor(np.expand_dims(lbl,1))
     
     return sig, lbl, clbl
