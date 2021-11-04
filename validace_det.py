@@ -16,6 +16,7 @@ import torch.nn.functional as F
 import torch
 import random
 import utilities
+import pandas as pd
 
 import h5py
 import loaders2
@@ -58,89 +59,128 @@ def SelectRandomData(tl,tll,num):
         for ii in t:
             train_list.append(tl[ii])
             
-    return train_list
-        
+    return train_list     
     
 dictGen = dict(gapA=0 , infB=1 , mdh=2 , pgi=3 , phoE=4 , rpoB=5 , tonB=6, run=7)
 
 
-## LOding data
- 
+
+## LOding data  
+
 path_data = 'C:\data\jakubicek\signals_without_all_mlst_genes'
 empty_list, _  = CreateDataset(path_data, (0,54))
 empty_list = np.random.permutation( empty_list ).tolist()
 
-test_list_o = []
-
 path_data = 'C:\data\jakubicek/all_MLST_genes_new_format1/test'
 test_list_o , _ = CreateDataset(path_data, (0,-1))
+# test_list_o = random.sample(test_list_o , 1000)
 
+for l in range(7000,9000):
+    test_list_o.append( empty_list[l] )
+    
 
-# for l in range(8000,8500):
-#     test_list_o.append( empty_list[l] )
 
 ## LSTM training○
 
 # net = NetGEN(enc_chs=(1,16,32,64,128), lstm_h_size=256, h_size=512).cuda()
-net = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v3_6.pt")
+net = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v3_7.pt")
 
 
-test_acc = [] 
-test_ACC = []
-class_acc = []
-class_lbl = []
+train_dice = []
+train_DICE = []
+test_dice = [] 
+test_DICE = []
 
-batch = 4
+
+res_table = pd.DataFrame(data=[], columns=['FileName', 'ID_signal', 'Gene', 'Dice', 'Gene position anot orig', 'Gene position anot sub', 'Gene position predicted orig',  'Gene position predicted sub', 'ID_image'] )
+                                           
+
 test_list = test_list_o
+# test_list = np.random.permutation( test_list_o )[0:len( test_list_o ):50]  
+test_list = np.random.permutation( test_list_o )[0:1:1]
 
+batch = 1
 
-for i in range(0, len(test_list)-batch, batch):
+for i in range(0, len(test_list), batch):
 # for ite in range(0, 10, batch):
     with torch.no_grad():
         
         net.train(mode=False)            
-        sample, lbl, clbl = loaders2.Load_cut_signal_h5(i, batch, test_list, dictGen)
-
+        # sample, lbl, clbl = loaders2.Load_cut_signal_h5(i, batch, test_list, dictGen)
+        sample, lbl, clbl = loaders2.Load_whole_signal_h5(test_list[i], dictGen)
+        
         net.init_hiden(batch)            
         pred = net(sample.cuda())
-        pred = F.softmax(pred, dim=2)             
+        pred = F.softmax(pred, dim=2)
 
         lbl = lbl.permute([0,2,1]).cuda()
         lbl = F.interpolate(lbl, ( pred.shape[1]))
+        lbl = lbl[:,0,:]
         pred = pred.permute([0,2,1])
-        lbl = lbl.squeeze()
+        # lbl = lbl.squeeze()
         
-        GT=np.zeros(pred.shape)
-        GT[:,1,:] = lbl.detach().cpu().numpy()
-        GT[:,0,:] = ( 1-lbl.detach().cpu().numpy() )
-        P = pred.detach().cpu().numpy()>0.5
+        GT = lbl.detach().cpu().numpy()
+        P = pred[:,1,:].detach().cpu().numpy()>0.5
         
-        test_acc.append( np.mean( np.sum( np.sum( GT==P,2),1) / (GT.shape[1]*GT.shape[2]) )  )
-        class_acc = np.concatenate((class_acc, ( np.sum( np.sum( GT==P,2),1) / (GT.shape[1]*GT.shape[2]) ) ) )
-        class_lbl = np.concatenate( (class_lbl, clbl.numpy() ) )
+        dice = torch.tensor(np.zeros((1), dtype=np.float32))
+        dice[0] = utilities.dice_torch(torch.tensor(P), torch.tensor(GT))
+        test_dice.append(dice.numpy()[0])
+        
+        # test_acc.append( np.mean( np.sum( np.sum( GT==P,2),1) / (GT.shape[1]*GT.shape[2]) )  )
+        # class_acc = np.concatenate((class_acc, ( np.sum( np.sum( GT==P,2),1) / (GT.shape[1]*GT.shape[2]) ) ) )
+        # class_lbl = np.concatenate( (class_lbl, clbl.numpy() ) )
+        # class_dice = np.concatenate( (class_dice, dice.numpy() ) )
         
         plt.figure
         plt.plot(lbl.detach().cpu().numpy()[0,:])
         plt.plot(pred.detach().cpu().numpy()[0,1,:])
         # plt.plot(P[0,:])
         plt.ylim([0.0,1])
-        plt.show() 
-                    
-torch.cuda.empty_cache()
-
-hi = utilities.comp_class_acc(class_lbl, class_acc)
-
-plt.figure
-plt.bar(np.arange(0,8), hi)
-# plt.ylim([0, 1.0])
-plt.xlim([0, 8.0])
-plt.show() 
-
-plt.figure
-plt.bar(np.arange(0,len(test_acc)), test_acc)
-# plt.ylim([0, 1.0])
-plt.show() 
        
+        num = '0000000' + str(i)
+        num = num[-6:]
+        plt.savefig('D:\\jakubicek\\Bioinformatika\\Models\\Export_Images\\' + 'Image_' + num + '.png' )
+        plt.show()
+         
+        a = test_list[i]['tname'].split('\\')[-1]
+        FileName = test_list[i]['file_path'].split('\\')[-1]
+        f = h5py.File(test_list[i]['file_path'],'r')
+        loc = np.asarray(f[a]['coord']).astype(np.float32)
+        loc.sort() 
+        
+        ind = [ii for ii, x in enumerate(list(lbl.squeeze().detach().cpu().numpy()>0.5)) if x ]    
+        if not ind:
+            loc_pred_sub = [0,0]
+        else:
+            loc_pred_sub = [ind[0], ind[-1]]
+        
+        res_table.loc[(i,'FileName')] =   FileName 
+        res_table.loc[(i,'ID_signal')] =  a 
+        res_table.loc[(i,'Gene')] = clbl.detach().cpu().numpy()
+        res_table.loc[(i,'Dice')] = dice[0].detach().cpu().numpy()
+        res_table.loc[(i,'Gene position anot orig')] = loc
+        res_table.loc[(i,'Gene position anot sub')] = (loc/16).astype( np.int64 ).tolist()
+        res_table.loc[(i,'Gene position predicted orig')] = ( (np.array( loc_pred_sub)*16).astype( np.int64 ) ).tolist()
+        res_table.loc[(i,'Gene position predicted sub')] = loc_pred_sub
+        res_table.loc[(i,'ID_image')] = num
+          
+        torch.cuda.empty_cache()
+    
+    # hi = utilities.comp_class_acc(class_lbl, class_acc)
+    
+        # plt.figure
+        # plt.bar(np.arange(0,8), hi)
+        # # plt.ylim([0, 1.0])
+        # plt.xlim([0, 8.0])
+        # plt.show() 
+        
+        # plt.figure
+        # plt.bar(np.arange(0,len(test_acc)), test_acc)
+        # # plt.ylim([0, 1.0])
+        # plt.show() 
+           
+
+utilities.save_to_excel(res_table, 'D:\\jakubicek\\Bioinformatika\\Models\\Export_Images' , 'Results' + num + '.xlsx')
     
     
     
