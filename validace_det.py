@@ -94,16 +94,15 @@ test_DICE = []
 class_lbl=np.array((0,))
 class_dice=np.array((0,))
 
-res_table = pd.DataFrame(data=[], columns=['FileName', 'ID_signal', 'Gene', 'Dice', 'Gene position anot orig', 'Gene position anot sub', 'Gene position predicted orig',  'Gene position predicted sub', 'ID_image'] )
-                                           
+res_table = pd.DataFrame(data=[], columns=['FileName', 'ID_signal', 'Gene', 'Dice', 'Gene position anot orig', 'Gene position anot sub', 'Gene position predicted orig',  'Gene position predicted sub', 'ID_image'] )                                         
 
 test_list = test_list_o
-test_list = np.random.permutation( test_list_o )[0:len( test_list_o ):60]
+# test_list = np.random.permutation( test_list_o )[0:len( test_list_o ):1]
 # test_list = np.random.permutation( test_list_o )[0:20:1]
 
 batch = 1
 
-hf = h5py.File('pst_signals.h5', 'w')
+hf = h5py.File('D:\jakubicek\Bioinformatika\Models\Export_Images\pst_signals.h5', 'w')
 
 for i in range(0, len(test_list), batch):
 # for ite in range(0, 10, batch):
@@ -143,6 +142,7 @@ for i in range(0, len(test_list), batch):
         num = num[-6:]
         plt.savefig('D:\\jakubicek\\Bioinformatika\\Models\\Export_Images\\' + 'Image_' + num + '.png' )
         plt.show()
+        plt.close()
          
         a = test_list[i]['tname'].split('\\')[-1]
         FileName = test_list[i]['file_path'].split('\\')[-1]
@@ -150,7 +150,7 @@ for i in range(0, len(test_list), batch):
         loc = np.asarray(f[a]['coord']).astype(np.float32)
         loc.sort() 
         
-        ind = [ii for ii, x in enumerate(list(lbl.squeeze().detach().cpu().numpy()>0.5)) if x ]    
+        ind = [ii for ii, x in enumerate(np.squeeze(P)) if x ]    
         if not ind:
             loc_pred_sub = [0,0]
         else:
@@ -171,7 +171,7 @@ for i in range(0, len(test_list), batch):
         class_lbl = np.concatenate( (class_lbl, clbl.numpy() ) )
         class_dice = np.concatenate( (class_dice, dice.numpy() ) )
         
-        print(str(i))
+        print(str(i/len(test_list)*100))
         
         hf.create_dataset(num, data=pred[:,1,:].detach().cpu().numpy())
         
