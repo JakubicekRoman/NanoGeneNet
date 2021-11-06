@@ -83,7 +83,7 @@ for l in range(7000,9000):
 ## LSTM training○
 
 # net = NetGEN(enc_chs=(1,16,32,64,128), lstm_h_size=256, h_size=512).cuda()
-net = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v3_7.pt")
+net = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v3_9_1.pt")
 
 
 train_dice = []
@@ -91,15 +91,19 @@ train_DICE = []
 test_dice = [] 
 test_DICE = []
 
+class_lbl=np.array((0,))
+class_dice=np.array((0,))
 
 res_table = pd.DataFrame(data=[], columns=['FileName', 'ID_signal', 'Gene', 'Dice', 'Gene position anot orig', 'Gene position anot sub', 'Gene position predicted orig',  'Gene position predicted sub', 'ID_image'] )
                                            
 
 test_list = test_list_o
-# test_list = np.random.permutation( test_list_o )[0:len( test_list_o ):50]  
-test_list = np.random.permutation( test_list_o )[0:1:1]
+test_list = np.random.permutation( test_list_o )[0:len( test_list_o ):60]
+# test_list = np.random.permutation( test_list_o )[0:20:1]
 
 batch = 1
+
+hf = h5py.File('pst_signals.h5', 'w')
 
 for i in range(0, len(test_list), batch):
 # for ite in range(0, 10, batch):
@@ -134,9 +138,7 @@ for i in range(0, len(test_list), batch):
         plt.figure
         plt.plot(lbl.detach().cpu().numpy()[0,:])
         plt.plot(pred.detach().cpu().numpy()[0,1,:])
-        # plt.plot(P[0,:])
         plt.ylim([0.0,1])
-       
         num = '0000000' + str(i)
         num = num[-6:]
         plt.savefig('D:\\jakubicek\\Bioinformatika\\Models\\Export_Images\\' + 'Image_' + num + '.png' )
@@ -166,23 +168,22 @@ for i in range(0, len(test_list), batch):
           
         torch.cuda.empty_cache()
     
-    # hi = utilities.comp_class_acc(class_lbl, class_acc)
-    
-        # plt.figure
-        # plt.bar(np.arange(0,8), hi)
-        # # plt.ylim([0, 1.0])
-        # plt.xlim([0, 8.0])
-        # plt.show() 
+        class_lbl = np.concatenate( (class_lbl, clbl.numpy() ) )
+        class_dice = np.concatenate( (class_dice, dice.numpy() ) )
         
-        # plt.figure
-        # plt.bar(np.arange(0,len(test_acc)), test_acc)
-        # # plt.ylim([0, 1.0])
-        # plt.show() 
-           
+        print(str(i))
+        
+        hf.create_dataset(num, data=pred[:,1,:].detach().cpu().numpy())
+        
+hf.close()
 
 utilities.save_to_excel(res_table, 'D:\\jakubicek\\Bioinformatika\\Models\\Export_Images' , 'Results' + num + '.xlsx')
     
-    
+hd = utilities.comp_class_acc(class_lbl, class_dice)       
+plt.figure
+plt.bar(np.arange(0,8), hd)
+# plt.ylim([0.5, 1.0])
+plt.show()     
     
     
     

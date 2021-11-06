@@ -80,7 +80,7 @@ class NetGEN(nn.Module):
         
         # y = torch.squeeze(y)
         # y=self.linear1(torch.cat((x,y,yC),2))   ### concatenation of input and lstm output  - "residual conection"\
-        # y=self.linear1(torch.cat((x,y),2))   ### concatenation of ☺ and lstm output  - "residual conection"\
+        # y=self.linear1(torch.cat((x,y),2))   ### concatenation of and lstm output  - "residual conection"\
         C = self.c.permute([1,0,2]).repeat(1,y.shape[1],1)
         y = torch.cat((y, C),2)
         
@@ -108,8 +108,6 @@ def CreateDataset(path_data, ind):
     # number = []
     # ii=0
     # i=0
-    
-    h5_list = h5_list[int(ind[0]):int(ind[1])]
     
     for file_path in h5_list:
         f = h5py.File(file_path)
@@ -146,7 +144,7 @@ path_data = 'C:\data\jakubicek\signals_without_all_mlst_genes'
 empty_list, _  = CreateDataset(path_data, (0,54))
 empty_list = np.random.permutation( empty_list ).tolist()
 
-for l in range(0,2000):
+for l in range(0,1000):
     train_list.append( empty_list[l] )
 
 path_data = 'C:\data\jakubicek/all_MLST_genes_new_format1/test'
@@ -162,7 +160,7 @@ for l in range(7000,9000):
 net = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v3_6.pt")
 
 # optimizer = optim.Adam(net.parameters(), lr=0.00001, weight_decay=0.9)
-optimizer = optim.SGD(net.parameters(), lr=0.00001, weight_decay=0., momentum= 0.95)
+optimizer = optim.SGD(net.parameters(), lr=0.000001, weight_decay=0.0001, momentum= 0.8)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1, verbose=True)
 
 
@@ -243,7 +241,7 @@ for epch in range(0,10):
 
         torch.cuda.empty_cache()
         
-        if ii%(int((len(train_list)/batch)/100))  == 0:
+        if ii%(int((len(train_list)/batch)/20))  == 0:
         # if ii%(10)  == 0:
             # train_ACC.append(np.mean(train_acc))
             
