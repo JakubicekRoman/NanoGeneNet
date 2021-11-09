@@ -210,8 +210,8 @@ for l in range(7000,9000):
 
 # net = NetGEN(enc_chs=(1,16,32,64,128), lstm_h_size=256, h_size=512).cuda()
 net1 = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v3_9_1.pt")
-net2 = ClassGEN(enc_chs=(257,256,512,1024), lstm_h_size=512, h_size=1024).cuda()
-# net2 = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v5_0.pt")
+# net2 = ClassGEN(enc_chs=(257,256,512,1024), lstm_h_size=512, h_size=1024).cuda()
+net2 = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v5_1.pt")
 
 optimizer = optim.Adam(net2.parameters(), lr=0.0001, weight_decay=0.000001)
 # optimizer = optim.SGD(net2.parameters(), lr=0.000001, weight_decay=0.0001, momentum= 0.8)
@@ -227,7 +227,7 @@ test_ACC = []
 train_clbl = []
 test_clbl = []
 
-batchTrain = 32
+batchTrain = 8
 batch = batchTrain
 
 for epch in range(0,10):
