@@ -112,7 +112,7 @@ class ClassGEN(nn.Module):
         self.lstm        = nn.LSTM(enc_chs[-1], lstm_h_size, batch_first=True, num_layers=self.lstm_layers, bidirectional=False, dropout=0.5)            
         self.linear1     = nn.Linear(lstm_h_size, h_size)
         self.do          = nn.Dropout(p=0.5)
-        self.linear2     = nn.Linear(h_size, h_size, bias=True)
+        # self.linear2     = nn.Linear(h_size, h_size, bias=True)
         self.linear3     = nn.Linear(h_size, 8, bias=True)
         
         self.relu  = nn.ReLU()
@@ -134,8 +134,8 @@ class ClassGEN(nn.Module):
         # y = torch.cat((self.h, pred),2)
         y = torch.squeeze( self.h )
         y=self.linear1(y)
-        y=F.relu(y) 
-        y=self.linear2(y)
+        # y=F.relu(y) 
+        # y=self.linear2(y)
         y=F.relu(y) 
         y=self.do(y)
         y=self.linear3(y)  
@@ -210,18 +210,24 @@ for l in range(7000,9000):
 
 # net = NetGEN(enc_chs=(1,16,32,64,128), lstm_h_size=256, h_size=512).cuda()
 net1 = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v3_9_1.pt")
-net2 = ClassGEN(enc_chs=(257,512,512), lstm_h_size=512, h_size=1024).cuda()
+net2 = ClassGEN(enc_chs=(257,256,512,1024), lstm_h_size=512, h_size=1024).cuda()
+# net2 = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v5_0.pt")
 
-optimizer = optim.Adam(net2.parameters(), lr=0.00001, weight_decay=0.000001)
+optimizer = optim.Adam(net2.parameters(), lr=0.0001, weight_decay=0.000001)
 # optimizer = optim.SGD(net2.parameters(), lr=0.000001, weight_decay=0.0001, momentum= 0.8)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1, verbose=True)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1, verbose=True)
 
 
 train_loss = []
 train_acc = []
+train_LOSS = []
+train_ACC = []
+test_acc = []
+test_ACC = []
+train_clbl = []
+test_clbl = []
 
-
-batchTrain = 16
+batchTrain = 32
 batch = batchTrain
 
 for epch in range(0,10):
@@ -236,7 +242,7 @@ for epch in range(0,10):
         batch = batchTrain
                 
         # for bt in range(0,batch):
-        # net1.train()
+        net2.train()
      
         sample,lbl, clbl = loaders2.Load_cut_signal_h5(ite, batch, train_list, dictGen)
         # sample, lbl, clbl = loaders2.Load_whole_signal_h5(train_list[ite], dictGen)
@@ -244,14 +250,14 @@ for epch in range(0,10):
         net1.init_hiden(batch)
         with torch.no_grad():
             pred, feat = net1(sample.cuda())
-            pred = F.softmax(pred, dim=2)  
+            pred = F.softmax(pred, dim=2)
         
         
-        feat = torch.cat((feat[:,:,0:256], pred),2)[:,:,0:257]
+        feat = torch.cat((feat[:,:,0:256], torch.unsqueeze( pred[:,:,1],2 ) ),2)
         
         net2.init_hiden(batch)
         pred2 = net2(feat.cuda())
-        pred2 = F.softmax(pred2, dim=1)  
+        pred2 = F.softmax(pred2, dim=1)
         
         loss = nn.CrossEntropyLoss()( pred2,  clbl.type(torch.long) .cuda())
          
@@ -261,86 +267,113 @@ for epch in range(0,10):
         # scheduler.step()
         
         acc = (clbl.detach().cpu().numpy().squeeze() == ( pred2.detach().cpu().numpy().squeeze().argmax(1) )).astype(np.dtype(float))   
-        train_acc.append( np.mean( acc )  )        
-        train_loss.append(  loss.detach().cpu().numpy() )
+        train_acc.append(  acc  )        
+        # train_loss.append(  loss.detach().cpu().numpy() )
+        train_clbl.append( clbl.numpy() )
 
         torch.cuda.empty_cache()
         
         
         
-        # if ii%(int((len(train_list)/batch)/20))  == 0:
-        # # if ii%(10)  == 0:
-        #     # train_ACC.append(np.mean(train_acc))
-            
-        #     plt.figure
-        #     plt.plot(lbl.detach().cpu().numpy()[0,:])
-        #     plt.plot(pred.detach().cpu().numpy()[0,1,:])
-        #     # plt.plot(P[0,:])
-        #     plt.ylim([0.0,1])
-        #     plt.show() 
-            
-        #     # class_acc=np.array((0,))
-        #     class_lbl=np.array((0,))
-        #     class_dice=np.array((0,))
-            
-        #     test_list = np.random.permutation( test_list_o )[0:len( test_list_o ):50]  
-        #     batch = 1
-        #     for i in range(0, len(test_list)-batch, batch):
-        #     # for ite in range(0, 10, batch):
-        #         with torch.no_grad():
+        if ii%(int((len(train_list)/batch)/10))  == 0:
+        # if ii%(10)  == 0:
+            test_acc=[]
+            test_clbl=[]
+            test_list = np.random.permutation( test_list_o )[0:len( test_list_o ):50]  
+            batch = 32
+            for i in range(0, len(test_list)-batch, batch):
+            # for ite in range(0, 10, batch):
+                with torch.no_grad():
                     
-        #             net.train(mode=False)            
-        #             # sample, lbl, clbl = loaders2.Load_cut_signal_h5(i, batch, test_list, dictGen)
-        #             sample, lbl, clbl = loaders2.Load_whole_signal_h5(test_list[i], dictGen)
+                    net1.train(mode=False) 
+                    net2.train(mode=False) 
+                    sample, lbl, clbl = loaders2.Load_cut_signal_h5(i, batch, test_list, dictGen)
+                    # sample, lbl, clbl = loaders2.Load_whole_signal_h5(test_list[i], dictGen)
                     
-        #             net.init_hiden(batch)            
-        #             pred = net(sample.cuda())
-        #             pred = F.softmax(pred, dim=2)
+                    net1.init_hiden(batch)            
+                    pred, feat = net1(sample.cuda())
+                    pred = F.softmax(pred, dim=2)
+                    
+                    feat = torch.cat((feat[:,:,0:256], torch.unsqueeze( pred[:,:,1],2 ) ),2)
+                    
+                    net2.init_hiden(batch) 
+                    pred2 = net2(feat.cuda())
+                    pred2 = F.softmax(pred2, dim=1)
             
-        #             lbl = lbl.permute([0,2,1]).cuda()
-        #             lbl = F.interpolate(lbl, ( pred.shape[1]))
-        #             lbl = lbl[:,0,:]
-        #             pred = pred.permute([0,2,1])
-        #             # lbl = lbl.squeeze()
-                    
-        #             GT = lbl.detach().cpu().numpy()
-        #             P = pred[:,1,:].detach().cpu().numpy()>0.5
-                    
-        #             dice = torch.tensor(np.zeros((1), dtype=np.float32))
-        #             dice[0] = utilities.dice_torch(torch.tensor(P), torch.tensor(GT))
-        #             test_dice.append(dice.numpy()[0])
-                    
-        #             # test_acc.append( np.mean( np.sum( np.sum( GT==P,2),1) / (GT.shape[1]*GT.shape[2]) )  )
-        #             # class_acc = np.concatenate((class_acc, ( np.sum( np.sum( GT==P,2),1) / (GT.shape[1]*GT.shape[2]) ) ) )
-        #             class_lbl = np.concatenate( (class_lbl, clbl.numpy() ) )
-        #             class_dice = np.concatenate( (class_dice, dice.numpy() ) )
-                    
-            # torch.cuda.empty_cache()
+                    acc = (clbl.detach().cpu().numpy().squeeze() == ( pred2.detach().cpu().numpy().squeeze().argmax(1) )).astype(np.dtype(float))   
+                    test_acc.append( acc )
+                    test_clbl.append(  clbl.numpy() ) 
+                                               
+            torch.cuda.empty_cache()   
             
-            # hi = utilities.comp_class_acc(class_lbl, class_acc)
-            # hd = utilities.comp_class_acc(class_lbl, class_dice)
-            
-        if ii%(int((len(train_list)/batch)/20))  == 0:    
-            plt.figure
-            plt.plot(train_loss)
-            # plt.ylim([0, 1.0])
-            plt.show()        
+            hi = utilities.comp_class_acc( np.array( train_clbl ).ravel() ,  np.array( train_acc ).ravel() )
+            hd = utilities.comp_class_acc( np.array( test_clbl ).ravel() , np.array( test_acc ).ravel() )
+             
+            # train_LOSS.append( np.mean( np.array( train_loss ).ravel()) )
+            train_ACC.append( np.mean( np.array( train_acc ).ravel()) ) 
+            test_ACC.append( np.mean(test_acc) )
+
+            # plt.figure
+            # plt.plot(train_LOSS)
+            # # plt.ylim([0, 1.0])
+            # plt.show()        
             
             plt.figure
-            plt.plot( train_acc )
+            plt.plot( train_ACC )
+            plt.plot( test_ACC )
             # plt.ylim([0.8, 1.0])
             plt.show()   
+
             
-            # lbl = lbl.permute([0,2,1]).cuda()
-            # lbl = F.interpolate(lbl, ( pred.shape[1]))
-            # lbl = lbl[:,0,:]
+            width = 0.35
+            fig, ax = plt.subplots()
+            rects1 = ax.bar(np.arange(0,8) - width/2, hi, width)
+            rects2 = ax.bar(np.arange(0,8) + width/2, hd, width)
+            plt.show() 
             
-            # plt.figure
-            # plt.plot(lbl.detach().cpu().numpy()[0,:])
-            # plt.plot(pred.detach().cpu().numpy()[0,:,1])
-            # # plt.plot(P[0,:])
-            # plt.ylim([0.0,1])
-            # plt.show() 
+            # train_loss = []
+            train_acc = []     
+            test_acc = []
+            test_clbl = []
+            train_clbl = []
+            
+            
+            
+            
+        # if ii%(int((len(train_list)/batch)/20))  == 0:     
+        #     hi = utilities.comp_class_acc(train_clbl[0], train_acc[0] )
+            
+        #     train_LOSS.append( np.mean(train_loss) )
+        #     train_ACC.append( np.mean(train_acc) )
+
+        #     plt.figure
+        #     plt.plot(train_LOSS)
+        #     # plt.ylim([0, 1.0])
+        #     plt.show()        
+            
+        #     plt.figure
+        #     plt.plot( train_ACC )
+        #     # plt.ylim([0.8, 1.0])
+        #     plt.show()   
+            
+        #     # lbl = lbl.permute([0,2,1]).cuda()
+        #     # lbl = F.interpolate(lbl, ( pred.shape[1]))
+        #     # lbl = lbl[:,0,:]
+            
+        #     # plt.figure
+        #     # plt.plot(lbl.detach().cpu().numpy()[0,:])
+        #     # plt.plot(pred.detach().cpu().numpy()[0,:,1])
+        #     # # plt.plot(P[0,:])
+        #     # plt.ylim([0.0,1])
+        #     # plt.show() 
+            
+        #     plt.figure
+        #     plt.bar(np.arange(0,8), hi)
+        #     # plt.ylim([0.5, 1.0])
+        #     plt.show()
+            
+        #     train_loss=[]
+        #     train_acc=[]
             
         ii=ii+1
         print('Epocha: ' + str(epch) + ', Iterace: ' + str(ite/(len(train_list))*100) )
