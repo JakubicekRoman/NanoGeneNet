@@ -144,7 +144,7 @@ path_data = 'C:\data\jakubicek\signals_without_all_mlst_genes'
 empty_list, _  = CreateDataset(path_data, (0,54))
 empty_list = np.random.permutation( empty_list ).tolist()
 
-for l in range(0,1000):
+for l in range(0,2000):
     train_list.append( empty_list[l] )
 
 path_data = 'C:\data\jakubicek/all_MLST_genes_new_format1/test'
