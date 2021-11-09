@@ -211,11 +211,11 @@ for l in range(7000,9000):
 # net = NetGEN(enc_chs=(1,16,32,64,128), lstm_h_size=256, h_size=512).cuda()
 net1 = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v3_9_1.pt")
 # net2 = ClassGEN(enc_chs=(257,256,512,1024), lstm_h_size=512, h_size=1024).cuda()
-net2 = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v5_1.pt")
+net2 = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v5_2_0.pt")
 
-optimizer = optim.Adam(net2.parameters(), lr=0.0001, weight_decay=0.000001)
+optimizer = optim.Adam(net2.parameters(), lr=0.00001, weight_decay=0.000001)
 # optimizer = optim.SGD(net2.parameters(), lr=0.000001, weight_decay=0.0001, momentum= 0.8)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1, verbose=True)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1, verbose=True)
 
 
 train_loss = []
@@ -227,7 +227,7 @@ test_ACC = []
 train_clbl = []
 test_clbl = []
 
-batchTrain = 8
+batchTrain = 1
 batch = batchTrain
 
 for epch in range(0,10):
@@ -244,8 +244,8 @@ for epch in range(0,10):
         # for bt in range(0,batch):
         net2.train()
      
-        sample,lbl, clbl = loaders2.Load_cut_signal_h5(ite, batch, train_list, dictGen)
-        # sample, lbl, clbl = loaders2.Load_whole_signal_h5(train_list[ite], dictGen)
+        # sample,lbl, clbl = loaders2.Load_cut_signal_h5(ite, batch, train_list, dictGen)
+        sample, lbl, clbl = loaders2.Load_whole_signal_h5(train_list[ite], dictGen)
 
         net1.init_hiden(batch)
         with torch.no_grad():
@@ -257,16 +257,16 @@ for epch in range(0,10):
         
         net2.init_hiden(batch)
         pred2 = net2(feat.cuda())
-        pred2 = F.softmax(pred2, dim=1)
+        pred2 = F.softmax(pred2, dim=0)
         
-        loss = nn.CrossEntropyLoss()( pred2,  clbl.type(torch.long) .cuda())
+        loss = nn.CrossEntropyLoss()( pred2.unsqueeze(0),  clbl.type(torch.long).cuda() )
          
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         # scheduler.step()
         
-        acc = (clbl.detach().cpu().numpy().squeeze() == ( pred2.detach().cpu().numpy().squeeze().argmax(1) )).astype(np.dtype(float))   
+        acc = (clbl.detach().cpu().numpy().squeeze() == ( pred2.detach().cpu().numpy().squeeze().argmax(0) )).astype(np.dtype(float))   
         train_acc.append(  acc  )        
         # train_loss.append(  loss.detach().cpu().numpy() )
         train_clbl.append( clbl.numpy() )
@@ -280,15 +280,15 @@ for epch in range(0,10):
             test_acc=[]
             test_clbl=[]
             test_list = np.random.permutation( test_list_o )[0:len( test_list_o ):50]  
-            batch = 32
+            batch = 1
             for i in range(0, len(test_list)-batch, batch):
             # for ite in range(0, 10, batch):
                 with torch.no_grad():
                     
                     net1.train(mode=False) 
                     net2.train(mode=False) 
-                    sample, lbl, clbl = loaders2.Load_cut_signal_h5(i, batch, test_list, dictGen)
-                    # sample, lbl, clbl = loaders2.Load_whole_signal_h5(test_list[i], dictGen)
+                    # sample, lbl, clbl = loaders2.Load_cut_signal_h5(i, batch, test_list, dictGen)
+                    sample, lbl, clbl = loaders2.Load_whole_signal_h5(test_list[i], dictGen)
                     
                     net1.init_hiden(batch)            
                     pred, feat = net1(sample.cuda())
@@ -298,9 +298,9 @@ for epch in range(0,10):
                     
                     net2.init_hiden(batch) 
                     pred2 = net2(feat.cuda())
-                    pred2 = F.softmax(pred2, dim=1)
+                    pred2 = F.softmax(pred2, dim=0)
             
-                    acc = (clbl.detach().cpu().numpy().squeeze() == ( pred2.detach().cpu().numpy().squeeze().argmax(1) )).astype(np.dtype(float))   
+                    acc = (clbl.detach().cpu().numpy().squeeze() == ( pred2.detach().cpu().numpy().squeeze().argmax(0) )).astype(np.dtype(float))   
                     test_acc.append( acc )
                     test_clbl.append(  clbl.numpy() ) 
                                                
