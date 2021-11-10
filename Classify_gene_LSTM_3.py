@@ -213,7 +213,7 @@ net1 = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v3_9_1.pt")
 # net2 = ClassGEN(enc_chs=(257,256,512,1024), lstm_h_size=512, h_size=1024).cuda()
 net2 = torch.load(r"D:\jakubicek\Bioinformatika\Models\net_v5_2_0.pt")
 
-optimizer = optim.Adam(net2.parameters(), lr=0.00001, weight_decay=0.000001)
+optimizer = optim.Adam(net2.parameters(), lr=0.000001, weight_decay=0.000001)
 # optimizer = optim.SGD(net2.parameters(), lr=0.000001, weight_decay=0.0001, momentum= 0.8)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1, verbose=True)
 
@@ -230,7 +230,7 @@ test_clbl = []
 batchTrain = 1
 batch = batchTrain
 
-for epch in range(0,10):
+for epch in range(0,4):
     net1.train(mode=False)
     ii=0
     # train_list = SelectRandomData(tl,tll,2000)
