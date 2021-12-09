@@ -40,25 +40,25 @@ def Load_whole_signal_h5(file, dictGen):
     lbl[int(loc[0]):int(loc[1])] = True
     lbl =  np.float32(lbl)
     
-    n = 100000
-    if N>1000000:
-        z = loc[1]-n
-        if z<0:
-            z=0
-        k=loc[0]-1
-        if k+n  >sig.shape[0]:
-            k=sig.shape[0]-n-1
-        if k<=z:
-            z=0
-            k=1
-        M = random.randrange(int(z), int(k))
-        sig = sig[range(int(M),int(M)+n)]
-        lbl = lbl[range(int(M),int(M)+n)]
+    # n = 100000
+    # if N>1000000:
+    #     z = loc[1]-n
+    #     if z<0:
+    #         z=0
+    #     k=loc[0]-1
+    #     if k+n  >sig.shape[0]:
+    #         k=sig.shape[0]-n-1
+    #     if k<=z:
+    #         z=0
+    #         k=1
+    #     M = random.randrange(int(z), int(k))
+    #     sig = sig[range(int(M),int(M)+n)]
+    #     lbl = lbl[range(int(M),int(M)+n)]
         
-        # sig = np.interp(np.linspace(0,N-1,int(N/4)), np.linspace(0,N-1,N), sig).astype(np.float32)
-        # lbl = np.interp(np.linspace(0,N-1,int(N/4)), np.linspace(0,N-1,N), lbl).astype(np.float32)
+    #     # sig = np.interp(np.linspace(0,N-1,int(N/4)), np.linspace(0,N-1,N), sig).astype(np.float32)
+    #     # lbl = np.interp(np.linspace(0,N-1,int(N/4)), np.linspace(0,N-1,N), lbl).astype(np.float32)
         
-    # lbl = np.asarray(dictGen[path.split('\\')[-1].split('_')[0]]).astype(np.float32)
+    # # lbl = np.asarray(dictGen[path.split('\\')[-1].split('_')[0]]).astype(np.float32)
     
     sig = np.expand_dims(sig,0)
     sig = torch.tensor(np.expand_dims(sig,2))

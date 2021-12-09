@@ -54,7 +54,7 @@ def CreateDataset(path_data, ind):
         # ii=0
     return sigs_list, lbl_ist
  
-def SelectRandomData(tl,tll,num):    
+def SelectRandomData(tl,tll,num):
     train_list=[]
     for num_g in range(0,7):
         t = random.sample( [i  for i,x in enumerate(tll) if x==num_g], num) 
@@ -71,7 +71,7 @@ dictGen = dict(gapA=0 , infB=1 , mdh=2 , pgi=3 , phoE=4 , rpoB=5 , tonB=6, run=7
 
 path_data = 'C:\data\jakubicek\signals_without_all_mlst_genes'
 empty_list, _  = CreateDataset(path_data, (0,54))
-empty_list = np.random.permutation( empty_list ).tolist()
+# empty_list = np.random.permutation( empty_list ).tolist()•
 
 path_data = 'C:\data\jakubicek/all_MLST_genes_new_format1/test'
 test_list_o , _ = CreateDataset(path_data, (0,-1))
@@ -99,7 +99,7 @@ class_dice=np.array((0,))
 res_table = pd.DataFrame(data=[], columns=['FileName', 'ID_signal', 'Gene', 'Dice', 'Gene position anot orig', 'Gene position anot sub', 'Gene position predicted orig',  'Gene position predicted sub', 'ID_image'] )                                         
 
 test_list = test_list_o
-test_list = np.random.permutation( test_list_o )[0:len( test_list_o ):10]
+# test_list = np.random.permutation( test_list_o )[0:len( test_list_o ):10]
 # test_list = np.random.permutation( test_list_o )[0:20:1]
 
 batch = 1
@@ -107,11 +107,15 @@ batch = 1
 T = []
 N = []
 
-# hf = h5py.File('D:\jakubicek\Bioinformatika\Models\Export_Images\pst_signals.h5', 'w')
+path_save = 'D:\jakubicek\Bioinformatika\Models\Export_Images_Det_3_9_1'
+
+hf = h5py.File(path_save + '\\pst_signals.h5', 'w')
 # hf = h5py.File('D:\jakubicek\Bioinformatika\Models\Export_Images\info.h5', 'w')
 
 for i in range(0, len(test_list), batch):
-# for ite in range(0, 10, batch):
+# for i in range(0, 10, batch):
+# for i in range(4723, 4724, batch):
+# for i in range(183, 184, batch):
     with torch.no_grad():
         
         
@@ -124,82 +128,92 @@ for i in range(0, len(test_list), batch):
         N.append(sample.shape[1])
         
         net.init_hiden(batch)            
-        pred = net(sample.cuda())
+        pred, _ = net(sample.cuda())
         pred = F.softmax(pred, dim=2)
 
         elapsed = time.time() - t
         T.append(elapsed)
         
-        # lbl = lbl.permute([0,2,1]).cuda()
-        # lbl = F.interpolate(lbl, ( pred.shape[1]))
-        # lbl = lbl[:,0,:]
-        # pred = pred.permute([0,2,1])
-        # # lbl = lbl.squeeze()
+        lbl = lbl.permute([0,2,1]).cuda()
+        lbl = F.interpolate(lbl, ( pred.shape[1]))
+        lbl = lbl[:,0,:]
+        pred = pred.permute([0,2,1])
+        # lbl = lbl.squeeze()
         
-        # GT = lbl.detach().cpu().numpy()
-        # P = pred[:,1,:].detach().cpu().numpy()>0.5
+        GT = lbl.detach().cpu().numpy()
+        P = pred[:,1,:].detach().cpu().numpy()>0.5
         
-        # dice = torch.tensor(np.zeros((1), dtype=np.float32))
-        # dice[0] = utilities.dice_torch(torch.tensor(P), torch.tensor(GT))
-        # test_dice.append(dice.numpy()[0])
+        dice = torch.tensor(np.zeros((1), dtype=np.float32))
+        dice[0] = utilities.dice_torch(torch.tensor(P), torch.tensor(GT))
+        test_dice.append(dice.numpy()[0])
         
-        # # test_acc.append( np.mean( np.sum( np.sum( GT==P,2),1) / (GT.shape[1]*GT.shape[2]) )  )
-        # # class_acc = np.concatenate((class_acc, ( np.sum( np.sum( GT==P,2),1) / (GT.shape[1]*GT.shape[2]) ) ) )
-        # # class_lbl = np.concatenate( (class_lbl, clbl.numpy() ) )
-        # # class_dice = np.concatenate( (class_dice, dice.numpy() ) )
-        
-        # plt.figure
-        # plt.plot(lbl.detach().cpu().numpy()[0,:])
-        # plt.plot(pred.detach().cpu().numpy()[0,1,:])
-        # plt.ylim([0.0,1])
-        # num = '0000000' + str(i)
-        # num = num[-6:]
-        # plt.savefig('D:\\jakubicek\\Bioinformatika\\Models\\Export_Images\\' + 'Image_' + num + '.png' )
-        # plt.show()
-        # plt.close()
-         
-        # a = test_list[i]['tname'].split('\\')[-1]
-        # FileName = test_list[i]['file_path'].split('\\')[-1]
-        # f = h5py.File(test_list[i]['file_path'],'r')
-        # loc = np.asarray(f[a]['coord']).astype(np.float32)
-        # loc.sort() 
-        
-        # ind = [ii for ii, x in enumerate(np.squeeze(P)) if x ]    
-        # if not ind:
-        #     loc_pred_sub = [0,0]
-        # else:
-        #     loc_pred_sub = [ind[0], ind[-1]]
-        
-        # res_table.loc[(i,'FileName')] =   FileName 
-        # res_table.loc[(i,'ID_signal')] =  a 
-        # res_table.loc[(i,'Gene')] = clbl.detach().cpu().numpy()
-        # res_table.loc[(i,'Dice')] = dice[0].detach().cpu().numpy()
-        # res_table.loc[(i,'Gene position anot orig')] = loc
-        # res_table.loc[(i,'Gene position anot sub')] = (loc/16).astype( np.int64 ).tolist()
-        # res_table.loc[(i,'Gene position predicted orig')] = ( (np.array( loc_pred_sub)*16).astype( np.int64 ) ).tolist()
-        # res_table.loc[(i,'Gene position predicted sub')] = loc_pred_sub
-        # res_table.loc[(i,'ID_image')] = num
-          
-        # torch.cuda.empty_cache()
-    
+        # test_acc.append( np.mean( np.sum( np.sum( GT==P,2),1) / (GT.shape[1]*GT.shape[2]) )  )
+        # class_acc = np.concatenate((class_acc, ( np.sum( np.sum( GT==P,2),1) / (GT.shape[1]*GT.shape[2]) ) ) )
         # class_lbl = np.concatenate( (class_lbl, clbl.numpy() ) )
         # class_dice = np.concatenate( (class_dice, dice.numpy() ) )
         
+        # plt.figure
+        plt.plot(lbl.detach().cpu().numpy()[0,:])
+        plt.plot(pred.detach().cpu().numpy()[0,1,:])
+        plt.ylim([0.0,1])
+        num = '0000000' + str(i)
+        num = num[-6:]
+        plt.savefig(path_save + '\\' + 'Image_' + num + '.png' )
+        plt.show()
+        plt.close()
+         
+        a = test_list[i]['tname'].split('\\')[-1]
+        FileName = test_list[i]['file_path'].split('\\')[-1]
+        f = h5py.File(test_list[i]['file_path'],'r')
+        loc = np.asarray(f[a]['coord']).astype(np.float32)
+        loc.sort() 
+        
+        ind = [ii for ii, x in enumerate(np.squeeze(P)) if x ]    
+        if not ind:
+            loc_pred_sub = [0,0]
+        else:
+            loc_pred_sub = [ind[0], ind[-1]]
+        
+        res_table.loc[(i,'FileName')] =   FileName 
+        res_table.loc[(i,'ID_signal')] =  a 
+        res_table.loc[(i,'Gene')] = clbl.detach().cpu().numpy()
+        res_table.loc[(i,'Dice')] = dice[0].detach().cpu().numpy()
+        res_table.loc[(i,'Gene position anot orig')] = loc.astype(np.int64)
+        res_table.loc[(i,'Gene position anot sub')] = (loc/16).astype( np.int64 ).tolist()
+        res_table.loc[(i,'Gene position predicted orig')] = ( (np.array( loc_pred_sub)*16).astype( np.int64 ) ).tolist()
+        res_table.loc[(i,'Gene position predicted sub')] = loc_pred_sub
+        res_table.loc[(i,'ID_image')] = num
+          
+        torch.cuda.empty_cache()
+    
+        class_lbl = np.concatenate( (class_lbl, clbl.numpy() ) )
+        class_dice = np.concatenate( (class_dice, dice.numpy() ) )
+        
         print(str(i/len(test_list)*100))
         
-        # hf.create_dataset(num, data=pred[:,1,:].detach().cpu().numpy())
+        hf.create_dataset(num, data=pred[:,1,:].detach().cpu().numpy())
         
-# hf.close()
+hf.close()
 
-# utilities.save_to_excel(res_table, 'D:\\jakubicek\\Bioinformatika\\Models\\Export_Images' , 'Results' + num + '.xlsx')
+utilities.save_to_excel(res_table, path_save + '\\' , 'ResultsDet')
     
-# hd = utilities.comp_class_acc(class_lbl, class_dice)       
-# plt.figure
-# plt.bar(np.arange(0,8), hd)
-# # plt.ylim([0.5, 1.0])
-# plt.show()     
+hd = utilities.comp_class_acc(class_lbl, class_dice)       
+plt.figure
+plt.bar(np.arange(0,8), hd)
+# plt.ylim([0.5, 1.0])
+plt.show()     
     
-    
+open_file = open(path_save + '\\test_list.pickle', "wb")
+pickle.dump(test_list, open_file)
+open_file.close()
+
+
+hf = h5py.File(path_save + '\info.h5', 'w')
+hf.create_dataset('times' , data=T  )
+hf.create_dataset('lenghts' , data=N  )  
+hf.create_dataset('Dice_genes' , data=hd  )  
+hf.close()
+
     
 ## # time demanding 
 # hf = h5py.File('D:\jakubicek\Bioinformatika\Models\Export_Images\info.h5', 'r')

@@ -19,7 +19,7 @@ def dice_loss_torch(X, Y):
 
 
 def dice_torch(X, Y):
-    eps = 1.
+    eps = 0.0001
     dice = ((2. * torch.sum(X*Y) + eps) / (torch.sum(X) + torch.sum(Y) + eps) )
     return dice
 
