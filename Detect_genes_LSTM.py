@@ -125,7 +125,7 @@ def CreateDataset(path_data, ind):
 def SelectRandomData(tl,tll,num):    
     train_list=[]
     for num_g in range(0,7):
-        t = random.sample( [i  for i,x in enumerate(tll) if x==num_g], num) 
+        t = random.sample( [i  for i,x in enumerate(tll) if x==num_g], num)
         for ii in t:
             train_list.append(tl[ii])
             
