@@ -10,7 +10,44 @@ import numpy.matlib
 import torch
 import random
 import h5py
+import os
+import glob
 
+
+
+def CreateDataset(path_data, ind): 
+    
+    dictGen = dict(gapA=0 , infB=1 , mdh=2 , pgi=3 , phoE=4 , rpoB=5 , tonB=6, run=7)
+    
+    h5_list = glob.glob( os.path.normpath( path_data + "**/*.h5"))  
+    sigs_list = []
+    lbl_ist = []
+    # allele_list = []
+    # number = []
+    # ii=0
+    # i=0
+    
+    for file_path in h5_list:
+        f = h5py.File(file_path)
+        
+        for a in f.__iter__():
+            sigs_list.append({'file_path': file_path, 'tname': a})
+            # allele_list.append(np.asarray(f[a]['allele']))
+            lbl_ist.append(np.asarray(dictGen[file_path.split('\\')[-1].split('_')[0]]).astype(np.float32))
+            # ii=ii+1
+        # number.append( ii )
+        # i=i+1
+        # ii=0
+    return sigs_list, lbl_ist
+ 
+def SelectRandomData(tl,tll,num):    
+    train_list=[]
+    for num_g in range(0,7):
+        t = random.sample( [i  for i,x in enumerate(tll) if x==num_g], num) 
+        for ii in t:
+            train_list.append(tl[ii])
+            
+    return train_list
 
 
 # nacteni h5 signalu

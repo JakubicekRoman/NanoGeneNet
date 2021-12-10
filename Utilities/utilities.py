@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 import xlsxwriter
- 
+
+
 def dice_loss_torch(X, Y):
     eps = 1.
     dice = ((2. * torch.sum(X*Y) + eps) / (torch.sum(X) + torch.sum(Y) + eps) )
