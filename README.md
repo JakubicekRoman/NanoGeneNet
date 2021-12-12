@@ -1,4 +1,4 @@
-# CTDeepRot
+# NanoGeneNet
 
 The proposed NN was used for prediction and classification of seven MLST loci (gapA, infB, mdh, pgi, phoE, rpoB, tonB) in squiggles of 29 Klebsiella pneumoniae genomes. 
 
