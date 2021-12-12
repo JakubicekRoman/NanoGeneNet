@@ -1,3 +1,5 @@
+# CTDeepRot
+
 The proposed NN was used for prediction and classification of seven MLST loci (gapA, infB, mdh, pgi, phoE, rpoB, tonB) in squiggles of 29 Klebsiella pneumoniae genomes. 
 
 The proposed NanoGeneNet can be divided into three basic parts: an extraction of features, a gene localization part (so-called a sequence-to-sequence regime) and finally, a gene classification part with another feature extraction, i.e. a sequence-to-vector regime. Using the combination of convolution and recurrent networks turned out to be a great solution for long and unevenly length signals. 
