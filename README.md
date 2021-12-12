@@ -9,4 +9,4 @@ The network was realized in Python 3.9 with the PyTorch library. The source code
 The training of NanoGeneNet was performed on computational device with Intel Xeon E5-2603v4, 16 GB RAM and graphical card nVidia Titan Xp, 12 GB GDDR5. The network was realized in Python 3.9 with the PyTorch library. 
 
 Code can be executed by "Main_demo.py" script. There is also available an example squiggle for example prediction. The script is prepared only for the using on a device with GPU.
-To execute, that requests to install this packages: pytorch, h5py, numpy, matplotlib, cudatoolkit
+To execute, that requests to install this packages: pytorch 1.9.1, h5py, numpy, matplotlib, cudatoolkit 11.1.1
