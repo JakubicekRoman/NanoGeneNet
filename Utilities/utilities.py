@@ -7,9 +7,9 @@ Created on Tue Sep 28 18:39:04 2021
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
+# import pandas as pd
 import os
-import xlsxwriter
+# import xlsxwriter
 
 
 def dice_loss_torch(X, Y):
@@ -44,17 +44,17 @@ def comp_class_acc(clbl, cacc):
         
     return hi
 
-def save_to_excel(dataframe, root_dir, name):
-    writer = pd.ExcelWriter(os.path.join(root_dir, '{}.xlsx'.format(name)),
-    engine='xlsxwriter',
-    datetime_format='yyyy-mm-dd',
-    date_format='yyyy-mm-dd')
-    sheet = name
-    dataframe.to_excel(writer, sheet_name=sheet)
+# def save_to_excel(dataframe, root_dir, name):
+#     writer = pd.ExcelWriter(os.path.join(root_dir, '{}.xlsx'.format(name)),
+#     engine='xlsxwriter',
+#     datetime_format='yyyy-mm-dd',
+#     date_format='yyyy-mm-dd')
+#     sheet = name
+#     dataframe.to_excel(writer, sheet_name=sheet)
     
-    worksheet = writer.sheets[sheet]
-    worksheet.set_column('A:ZZ', 22)
-    writer.save()
+#     worksheet = writer.sheets[sheet]
+#     worksheet.set_column('A:ZZ', 22)
+#     writer.save()
 
 
 # def loader(ite,sigs_list,trainIND, batch):

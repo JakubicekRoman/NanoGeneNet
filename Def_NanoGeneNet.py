@@ -73,8 +73,9 @@ class NetGEN(nn.Module):
     
     
     def init_hiden(self,batch):
-        self.h=torch.zeros((self.lstm_layers, batch, self.lstm_h_size)).cuda()
-        self.c=torch.zeros((self.lstm_layers, batch, self.lstm_h_size)).cuda()         
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.h=torch.zeros((self.lstm_layers, batch, self.lstm_h_size)).to(device)
+        self.c=torch.zeros((self.lstm_layers, batch, self.lstm_h_size)).to(device)    
 
 
         
@@ -111,5 +112,6 @@ class ClassGEN(nn.Module):
     
     
     def init_hiden(self,batch):
-        self.h=torch.zeros((self.lstm_layers, batch, self.lstm_h_size)).cuda()
-        self.c=torch.zeros((self.lstm_layers, batch, self.lstm_h_size)).cuda()             
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.h=torch.zeros((self.lstm_layers, batch, self.lstm_h_size)).to(device)
+        self.c=torch.zeros((self.lstm_layers, batch, self.lstm_h_size)).to(device)             
